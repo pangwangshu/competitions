@@ -61,5 +61,6 @@ python scripts/build_submission.py                      # dist/submission.tar.gz
 | `scripts/` | `play.py`, `paired_eval.py`, `build_submission.py` |
 | `tests/` | Solver optimality, agreement with the engine's rules and prices, end-to-end games |
 | `report/` | The paper, its figures, the data behind them, and `make_figures.py` |
+| `kaggle_notebook/` | The Kaggle notebook (generated from the source), its metadata, and the Discussion post |
 
 The code here is a cleanup of the final submission. It drops flags that were switched off, the experiment scaffolding behind them and harness-only logging, and moves per-game state onto a per-player object. It plays **action-for-action identically** to the submitted agent across 80 seeded games against eight opponents. Tested with Python 3.13; standard library only at run time, `kaggle-environments==1.32.7` to play locally.
