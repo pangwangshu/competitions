@@ -1,0 +1,4 @@
+# TopCoder's offline tester is downloaded separately; see tools/README.md.
+tools/tester.jar
+# Tester runs (saved inputs, outputs and scores); see report/writeup.md, Appendix B.
+runs/

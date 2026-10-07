@@ -1,0 +1,20 @@
+# Net change in summed raw score on the local tester, candidate vs. the build it
+# was meant to replace, for every substantive change tried during the match.
+# Source: the development log kept during the match. "seeds" is the number of
+# tester seeds (or seed x N comparisons where marked) in the deciding comparison.
+change,net_pct,seeds,outcome,note
+Incremental evaluator (Tier 1),20.3,100,shipped,
+Correctness fix + basin hopping (Tier 0),7.5,60,shipped,
+Preemptible widening r2/10 (take-2),6.8,70,shipped,
+Pair-level operators (Tier 2),5.9,100,shipped,
+Contention widening r1/5 (Tier 2.5),3.0,250,shipped,
+Probe selection + 9.5 s deadline,2.3,40,shipped,
+Adaptive construction budget (Tier 3),2.1,30,shipped,
+Deadline 9.0 s → 8.5 s,-0.4,100,shipped,shipped as a safety margin; +4.2 on the leaderboard
+Multiprocessing attempt selection,12.1,30,rejected,48.98 on the leaderboard; grader effectively single-core
+Upgrade matched paths (Tier 6),-2.8,48,rejected,seed x N comparisons
+Medium-distance-first ordering,-4.6,100,rejected,fresh seeds 401-500
+Adaptive probe depth + top-2 confirm,-5.4,40,rejected,
+LAHC acceptance (L = 300),-6.7,100,rejected,fresh seeds 301-400
+Score-aware route library (Tier 5),-14.7,18,rejected,seed x N comparisons
+LAHC acceptance (L = 1500),-19.5,100,rejected,fresh seeds 301-400

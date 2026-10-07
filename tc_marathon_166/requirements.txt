@@ -1,0 +1,6 @@
+# The solver uses only the Python standard library (tested with Python 3.13).
+
+# Tests and figures
+pytest>=8
+matplotlib>=3.8
+numpy>=1.26

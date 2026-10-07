@@ -1,0 +1,21 @@
+# Provisional leaderboard readings (normalized score, 0-100), in build order.
+# Source: the development log kept during the match (12-18 August 2026).
+# Order within 18 August is approximate. Readings are relative to the best
+# score on each case at the time, so they drift as other competitors improve.
+order,date,label,score,note
+1,2026-08-12,Day-one minimal greedy,11.42,
+2,2026-08-12,Multi-order construction + hill climbing,35.60,first version of this design
+3,2026-08-13,Tier 0+1: routing fix + basin hopping + incremental evaluator,50.23,
+4,2026-08-13,Tier 2: pair-level operators,50.72,
+5,2026-08-13,Tier 2 (submitted again),51.87,same build as order 4
+6,2026-08-13,Widening spatial/2 rounds (9.0 s),50.67,
+7,2026-08-14,Widening random/1 round (9.0 s),50.85,
+8,2026-08-14,Same build with 8.5 s deadline,55.01,only change: deadline 9.0 -> 8.5 s
+9,2026-08-14,Widening random/2 rounds (8.5 s),50.96,
+10,2026-08-18,Route library on (8.5 s),48.91,
+11,2026-08-18,Take-2: adaptive budget + preemptible widening r2/10 (8.5 s),51.04,
+12,2026-08-18,Take-2 with 9.5 s deadline,51.34,
+13,2026-08-18,Widening random/1 round (8.5 s) submitted again,49.71,same build as order 8
+14,2026-08-18,Take-2 + probe selection (9.5 s),51.68,
+15,2026-08-18,Take-2 + probe + multiprocessing,48.98,
+16,2026-08-18,Final submission: take-2 + probe selection (9.5 s),52.36,same configuration as order 14
