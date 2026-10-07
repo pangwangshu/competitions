@@ -1,0 +1,13 @@
+# Paired final-margin gain of the matching dispatcher over the previous greedy dispatcher (report/paper.md section 6.1).
+# split=tuning: seeds 90000-90039 x 4 opponents x 2 seats. split=heldout: seeds 95000-95059 x 4 opponents x 2 seats (n=480).
+split,weight,paired_margin,t,own_money_delta,share_better
+tuning,1,758,0.94,-1285,0.54
+tuning,2,2273,3.02,-489,0.57
+tuning,4,2917,3.77,1415,0.61
+tuning,8,3408,4.34,1062,0.62
+tuning,16,9080,10.33,8537,0.73
+tuning,32,8657,9.89,9111,0.74
+tuning,64,6540,6.89,7906,0.68
+tuning,pure_distance,9884,10.69,8754,0.77
+heldout,16,9968,15.10,,
+heldout,pure_distance,7471,9.84,,

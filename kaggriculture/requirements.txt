@@ -1,0 +1,7 @@
+# Engine version the agent was developed and verified against.
+kaggle-environments==1.32.7
+
+# Tests and figures
+pytest>=8
+matplotlib>=3.8
+numpy>=1.26

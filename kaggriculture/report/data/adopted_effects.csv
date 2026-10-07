@@ -1,0 +1,17 @@
+# Paired effect of each adopted change vs its immediate predecessor, in $ final margin per game (95% CI).
+# Panels: TAPE = opponents replayed from real ladder episodes; NATIVE = live public bots on fresh seeds;
+# PAIRED = native bots with weed and shop draws pinned; HOLDOUT = fresh seeds plus bots never used in selection.
+# For each change the panel used for its release decision is listed (holdout where one existed).
+version,change,panel,n,delta,ci_lo,ci_hi,online_score,note
+v11,Hungarian dispatch + hire schedule,NATIVE heldout,600,19926,18497,21355,718.5,t=27.35; CI from the standard error
+v12,Land cash-gate fix,NATIVE,2080,1251,483,2018,694.7,8 public bots; bootstrap CI
+v13,Terminal return liquidation,TAPE,151,3705,3425,3985,739.9,better in 151/151 games
+v13_fix,Endgame micro-fixes,TAPE holdout,48,1500,1007,2004,710.5,
+v14,Dated berry forecast + fertilizer plan,TAPE holdout,48,7157,5076,9138,741.2,40/48 games better
+v18,Late-season wheat ledger,TAPE holdout,234,2903,2654,3158,725.1,11 flips / 0 reversals
+v19,Fertilizer due-date priority,TAPE holdout,233,1402,916,1888,756.5,CI from the standard error (248)
+v21,Fertilizer timing + value-based watering,PAIRED,960,2628,1962,3292,710.4,4 tie-break salts x 240 pairs
+v22,Never buy the fourth quadrant,PAIRED,960,2824,2384,3210,720.7,net flips +28
+v23,Margin-aware herd valuation,HOLDOUT,1920,2913,1839,4008,751.9,10 bots; all salts positive
+v24,Zero-labour shed-overflow fixes,HOLDOUT,1920,3366,3109,3627,756.4,overflow loss online $5.1k -> $0.66k per game
+v25,Carrot realized-yield pricing,HOLDOUT,1920,840,519,1172,747.7,all 10 bots positive
