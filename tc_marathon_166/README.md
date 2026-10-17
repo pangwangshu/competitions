@@ -2,17 +2,17 @@
 
 My entry to TopCoder's [Marathon Match 166](https://www.topcoder.com/challenges/15f1c681-42b2-4f62-99c7-6f61fe5c57d9) (12–18 August 2026), a week-long optimization contest. A scrambled hexagonal board of up to 1,141 tiles must be rotated, tile by tile, so that each tile's three fixed chords chain into border-to-border paths connecting given pairs of exits. A case scores *(pairs connected) × (Σ path length × (bonus tiles crossed + 1) − moves × penalty)*, with 10 seconds per case, and the leaderboard rates each case against the best competitor on it.
 
-**Read the full write-up: [report/writeup.md](report/writeup.md).** It covers the solver design, every shipped and rejected change with its measured effect, the evaluation methodology, a fresh 250-seed analysis of what the solutions look like, and an honest account of the gap to the top.
+**Read the full write-up: [report/writeup.md](report/writeup.md).** It covers the solver design, every shipped and rejected change with its measured effect, the evaluation methodology, an archived 250-seed analysis of what the solutions look like, an evidence-led postmortem, and a concrete redesign to test. The [evidence index](report/evidence.md) records the audit scope and remaining provenance gaps.
 
 ![A board before and after the solver](report/figures/fig1_board.png)
 
 ## Results in brief
 
-- **Standing.** The provisional score rose from 35.6 (first version of this design) to a final **52.4**, with a best single reading of 55.0. Leaders scored 97–99.
+- **Standing.** Final score **51.66780, rank 55/75** (`wash`); winner 99.79022. The provisional score rose from 35.6 to a last reading of 52.35925, with a best earlier reading of 55.0.
 - **Throughput and correctness beat cleverness.** The largest gain was a pure speed-up: an incremental evaluator that previews a move **11× faster** than a full re-score, worth **+20.3%** raw score. The second was fixing a silent routing bug and letting the search use its whole time budget (+7.5%).
-- **Local measurement has blind spots.** Two configurations that won 250-seed local comparisons read lower on the grader, and a multiprocessing variant gained 12% locally on a grader that is effectively single-core. One unchanged build read 55.0 and later 49.7, so decisions were made on large local samples with a pre-committed ship rule.
+- **Local measurement has blind spots.** Two configurations that won 250-seed local comparisons read lower on the grader, and a multiprocessing variant gained 12% locally but failed to show a comparable gain on the grader; limited effective parallelism is a hypothesis. One unchanged build read 55.0 and later 49.7, so decisions were made on large local samples with a pre-committed ship rule.
 - **The score has a shape.** Re-running the final build on 250 seeds shows **one serpentine path threading the bonus tiles carries 79% of the path score** (median). Search connects only 6 more pairs in every 100 than construction does, yet multiplies the score **×4.1**, mostly by growing that path. No component plans it; the tile-flip search discovers it.
-- **The gap is architectural.** Per-pair routing optimizes the wrong unit for an objective dominated by one long path. Python throughput (about 80k evaluations per case) rules out the heavy annealing that can grow it further. The write-up quantifies the headroom in both factors.
+- **The gap needs architectural experiments.** The winner scores 1.931× our mean normalized score. Sequential routing, coordinated path repair and Python throughput are hypotheses to test, not established explanations of the leaders. The report specifies controlled comparisons and what would refute each hypothesis.
 
 ## How the solver works
 
@@ -28,7 +28,7 @@ flowchart LR
 
 - **Routing with claim-and-lock.** Each exit pair is routed by Dijkstra's algorithm. An unclaimed tile offers four exits, each costing the rotations needed to realise it; a tile used by an earlier route is fixed wiring at zero cost. Several pair orders and bonus-tile plans give several candidate boards.
 - **Every move is judged by the true objective.** The evaluator rests on a proven invariant: flipping tiles can only change paths that currently cross them. A preview retraces only those paths. Its correctness is checked against a frozen full evaluator after every commit in randomized tests.
-- **Contention-aware rerouting.** Unconnected pairs turned out to be blocked by other pairs' tiles, not infeasible. On failure the reroute operator frees the tiles of a growing random set of other pairs and accepts the result only if the whole-board score improves. Its widening rounds stop at the deadline, which bounds tail latency.
+- **Contention-aware rerouting.** Unconnected pairs turned out to be blocked by other pairs' tiles, not infeasible. On failure the reroute operator frees the tiles of a growing random set of other pairs and accepts the result only if the whole-board score improves. Its widening rounds check the deadline; each round can still contain several non-preemptible searches.
 - **Time as a managed resource.** An adaptive scheduler reserves 5.0–7.5 s for search, depending on board size. Short probes pick which construction to polish, because the immediate score picked wrong 7 times in 9.
 
 ## Quick start
@@ -62,4 +62,4 @@ python report/make_figures.py            # regenerate the write-up's figures fro
 | `report/` | The write-up, its figures, the data behind them, and `make_figures.py` |
 | `tools/` | Where TopCoder's offline tester goes (not redistributed here) |
 
-The source is the final submission. The only edits are three out-of-date comments in `solver.py` and the header of the Java baseline. The solver's syntax tree is identical to the submitted one, and its output on the case above is unchanged. Tested with Python 3.13 and OpenJDK 26.
+The source is the documented final configuration. All seven Python source syntax trees match the development checkout; this does not independently identify the uploaded ZIP. The report revision changes documentation and evidence only. Tested with Python 3.13 and OpenJDK 26.

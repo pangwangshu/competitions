@@ -10,15 +10,15 @@
 
 HexTiles is a combinatorial optimization puzzle. A hexagonal board of up to 1,141 tiles is given in a scrambled state. Each tile carries three fixed chords that pair up its six edges, and rotating a tile changes which edges are joined. The goal is to rotate tiles so that the chords chain into border-to-border paths connecting specified pairs of exits. The score is *(number of connected pairs) × (sum over connected paths of length × (bonus tiles crossed + 1) − moves × penalty)*. Each test case has a 10-second limit, and the leaderboard scores each case relative to the best competitor on it.
 
-I built a three-stage Python solver. Construction routes each exit pair with Dijkstra's algorithm over a (tile, entry edge) state graph. Short "probe" searches then pick the most promising construction. Finally, basin-hopping local search combines single-tile moves, pair-level reroute and drop operators, and a contention-aware widening step. Every move is judged by the true objective, through an incremental evaluator that previews a move about 11× faster than a full re-score. Over the week the provisional score rose from 35.6 to a final 52.4 (best reading 55.0), against leaders at 97–99.
+I built a three-stage Python solver. Construction routes each exit pair with Dijkstra's algorithm over a (tile, entry edge) state graph. Short "probe" searches then pick the most promising construction. Finally, basin-hopping local search combines single-tile moves, pair-level reroute and drop operators, and a contention-aware widening step. Every move is judged by the true objective, through an incremental evaluator that previews a move about 11× faster than a full re-score. Over the week the provisional score rose from 35.6 to a last provisional reading of 52.4 (best reading 55.0). Final testing scored **51.66780, rank 55 of 75**, against a winner at 99.79022.
 
 The work produced three groups of findings.
 
 **(1) Throughput and correctness beat cleverness.** The largest single gain (+20.3% raw score) was the incremental evaluator, a pure performance change. The second largest (+7.5%) was fixing a silent routing bug and letting the search use its whole time budget. A one-line deadline change, 9.0 s → 8.5 s, cost 0.4% locally and produced the week's highest leaderboard reading.
 
-**(2) Local measurement has blind spots, and some of them are expensive.** Two configurations that won clean 250-seed local comparisons read lower on the real grader. Both had a higher worst-case cost per call, which no local average can see. A multiprocessing variant gained 12% locally and lost on a grader that is effectively single-core. Single leaderboard readings also carry several points of noise: one unchanged build read 55.0 and later 49.7, so no single reading proves a cause. I describe the validation ladder and the pre-committed ship rule that came out of this.
+**(2) Local measurement has blind spots, and some of them are expensive.** Two configurations that won clean 250-seed local comparisons read lower on the real grader. Both had a higher worst-case cost per call, which no local average can see. A multiprocessing variant gained 12% locally and lost on a grader for which the observed result did not support useful parallelism. Single leaderboard readings also carry several points of noise: one unchanged build read 55.0 and later 49.7, so no single reading proves a cause. I describe the validation ladder and the pre-committed ship rule that came out of this.
 
-**(3) The score has a shape, and the shape sets the ceiling.** For this write-up I re-ran the final build on 250 seeds and re-scored every output independently; all 250 agree with the official tester. In a typical solution, **one serpentine path threading the bonus tiles carries 79% of the total path score** (median). Construction connects 70% of pairs. Local search connects only 6 points more, yet multiplies the score by a median 4.1×, mostly by growing that one path. It reaches 1.44× the tile count, out of a 3× chord capacity. I also correct a diagnostic from the contest log: it claimed 21–31% of pairs were connected at large N, and that figure does not reproduce.
+**(3) The score has a shape that construction does not explicitly target.** The archived report run covers 250 seeds; its replay script records agreement with the official tester on all 250. The script uses solver tracing code, so this is a cross-check against the Java tester, not a fully independent Python oracle. In a typical solution, **one serpentine path threading the bonus tiles carries 79% of the total path score** (median). Construction connects 70% of pairs. Local search connects only 6 points more, yet multiplies the score by a median 4.1×, mostly by growing that one path. It reaches 1.44× the tile count, out of a 3× chord capacity. I also correct a diagnostic from the contest log: it claimed 21–31% of pairs were connected at large N, and that figure does not reproduce.
 
 ---
 
@@ -32,14 +32,14 @@ This report is less a leaderboard story than a case study in three recurring eng
 2. **How do you decide whether a change helped** when the only local signal is a raw score on a different machine, and the official signal is relative, noisy, and costs a submission to read?
 3. **When do you stop tuning** and recognise that the architecture, not the parameters, sets the ceiling?
 
-I wrote the solver in Python for iteration speed. Section 9 returns to what that choice cost.
+I wrote the solver in Python for iteration speed. Sections 9–10 distinguish the measured throughput limit from the unmeasured benefit of a compiled rewrite.
 
 **Contributions.**
 
 - A three-stage solver (§3) in which every move is judged by the true objective, through an incremental evaluator whose locality invariant is proven and diffed against an untouched ground-truth evaluator on every commit in randomized tests. The suite has 105 tests.
 - A record of every substantive change and its measured effect (§5–6): eight shipped and eight rejected, each measured end to end. This includes the recurring failure pattern behind most rejections: greedy claiming exports cost onto other pairs.
 - A measurement methodology (§7) for a setting where the local and official signals differ in hardware, aggregation and noise, together with the pitfalls it caught.
-- A post-hoc analysis of what the final solutions look like (§8) and where the remaining gap lies (§9). It is based on a fresh 250-seed run and on the hidden boards recovered from the official test generator.
+- A post-hoc analysis of what the final solutions look like (§8), an evidence-led postmortem (§9), and a redesign to test (§10). The analysis uses the archived 250-seed report run and hidden boards recovered from the official generator. The [evidence index](evidence.md) separates historical claims from the checks repeated for this revision.
 
 ---
 
@@ -100,7 +100,7 @@ flowchart LR
     E -.-> L
 ```
 
-`solve()` builds the exit list by replicating the tester's border walk. It then constructs a series of candidate boards, probes each with a short search, keeps the best polished board, and searches from it until an internal deadline of 9.5 s. The remaining 0.5 s is margin under the hard 10 s limit (§5.5). Local search is guaranteed a size-scaled share of the budget, from 5.0 s at N = 3 to 7.5 s at N = 20, and construction may only use what is left.
+`solve()` builds the exit list by replicating the tester's border walk. It then constructs a series of candidate boards, probes each with a short search, keeps the best polished board, and searches from it until an internal deadline of 9.5 s. The remaining 0.5 s is margin under the hard 10 s limit (§5.5). The scheduler targets a size-scaled share of the budget, from 5.0 s at N = 3 to 7.5 s at N = 20, and admits further construction using measured attempt durations. This is a scheduling reserve, not a hard preemption guarantee: an admitted construction can overrun its estimate.
 
 ### 3.2 Routing: Dijkstra over (tile, entry edge)
 
@@ -128,13 +128,13 @@ An adaptive scheduler (`can_start_construction_attempt`) starts another attempt 
 
 Choosing among attempts by their immediate score turned out to be wrong more often than right. In an oracle experiment on 9 real captured cases, each attempt was polished to completion. Picking by construction score chose the wrong attempt in 7 of the 9 cases and left 6.55% of the final score unrealised. A board's immediate score says little about the basin it leads into.
 
-The solver therefore gives each attempt a short local search, from 0.15 s at N = 3 to 0.4 s at N = 20, keeps the best *polished* board, and resumes searching from it. Probing only runs when there are at least three attempts. It was net-negative on its own, because probe time comes out of the winner's search time. It became positive only together with the deadline moving from 8.5 s to 9.5 s (§5.6).
+The solver therefore gives each attempt a short local search, from 0.15 s at N = 3 to 0.4 s at N = 20, keeps the best *polished* board, and resumes searching from it. Probing is enabled when the planned attempt list has at least three entries; the time budget may allow fewer attempts to actually run. It was net-negative on its own, because probe time comes out of the winner's search time. It became positive only together with the deadline moving from 8.5 s to 9.5 s (§5.6).
 
 ### 3.5 Local search: basin hopping
 
 `improve_grid` loops until the deadline:
 
-1. **Tile pass.** Visit every tile in random order, preview all five alternative orientations, and commit the best one if it improves the objective. The objective is compared as the tuple (score, matched, path score, −moves), so ties are broken toward more matches and more path length. That keeps progress possible while the floored score is still 0.
+1. **Tile pass.** Visit every tile in random order, preview all five alternative orientations, and commit the best one if it improves the objective. The objective is compared as the tuple (score, matched, path score, −moves), so ties are broken toward more matches, then higher bonus-weighted path score, then fewer moves. That keeps progress possible while the floored score is still 0.
 2. **Pair pass.** Visit every target pair in random order. If the pair is matched, `drop_pair` tests reverting its tiles to their input orientations; this catches pairs whose move cost exceeds their value (§2.2). If it is unmatched, `reroute_pair` tries to route it against the rest of the board (§3.6).
 3. **Kick.** If a full pass finds no improvement, apply a random perturbation unconditionally. With equal probability, either 1–6 random tiles or every tile on 2–5 random pairs' paths gets a random orientation. If more than six consecutive stalled passes go by without a new best board, the search returns to the best board seen.
 
@@ -149,7 +149,7 @@ Two facts shaped this operator:
 - **Rerouting a matched pair is provably a no-op.** Every unclaimed tile has exactly one zero-cost exit for a given entry edge, its current chord. A route through the pair's own freed tiles at total cost 0 must therefore follow the existing path, and any other route costs more. Hence the pair pass routes only unmatched pairs and only tests dropping matched ones. A regression test locks this in.
 - **Unmatched pairs are blocked by contention, not infeasibility.** Freed only their own traces, stuck pairs were rerouted 7–13% of the time. On an otherwise free board, 95–100% of the same pairs were connectable. Freeing 5 random *other* pairs' tiles unblocked 33–78% of them.
 
-So on failure, `reroute_pair` *widens*. Each round adds the tiles of k more pairs to the freed set and tries again, cumulatively, stopping at the first success. Three ways of choosing those pairs were built and benchmarked: random; *spatial* (pairs with exits near the stuck pair's corridor); and *frontier* (pairs owning the tiles the failed search reached). Random won. Frontier had the best hit rate, but its extra scan cost crowded out the tile pass (−2% to −16%). The shipped configuration is random, 2 rounds, 10 pairs per round. Widening rounds are skipped once the deadline has passed, which bounds a late call's overrun to about one Dijkstra (§5.4).
+So on failure, `reroute_pair` *widens*. Each round adds the tiles of k more pairs to the freed set and tries again, cumulatively, stopping at the first success. Three ways of choosing those pairs were built and benchmarked: random; *spatial* (pairs with exits near the stuck pair's corridor); and *frontier* (pairs owning the tiles the failed search reached). Random won. Frontier had the best hit rate, but its extra scan cost crowded out the tile pass (−2% to −16%). The shipped configuration is random, 2 rounds, 10 pairs per round. The deadline is checked between widening rounds, not inside Dijkstra. A round calls `try_connect`, which can execute up to four searches in total when revisit conflicts occur. This reduces chained overruns but does not establish a strict one-Dijkstra or 10-second bound (§5.4).
 
 ### 3.7 The incremental evaluator
 
@@ -171,6 +171,19 @@ The evaluator keeps a map from each tile to the exits whose current trace touche
 - **Experiments are switches, defaults are the shipped build.** Experimental options are environment variables (`HEXTILES_WIDEN_*`, `HEXTILES_PROBE_SELECTION`, `HEXTILES_SOLVE_DEADLINE`). Unset, as on the grader, they fall back to the submitted configuration, so sweeps never needed code edits.
 - **One-file submission.** TopCoder accepts a single source file. `scripts/build.py` concatenates the package into `dist/HexTiles.py`, and each bundle was spot-checked against the tester before submission.
 - **Reproducibility.** Random sources are seeded from the board. A/B runs fix `PYTHONHASHSEED=0`, because set iteration order otherwise perturbed the bonus planner and produced cross-run noise of a few percent.
+
+### 3.9 Why these algorithms, and what they leave out
+
+| Decision | Why it fit the first working solver | Cost or limitation |
+|---|---|---|
+| Dijkstra rather than a longest-path constructor | Rotation edge costs are nonnegative; it quickly proposes a cheap connection with a compact state | It minimizes a routing surrogate, not the full multiplicative score. Revisit consistency is repaired by bounded retries, so routing is not a complete feasibility procedure |
+| Multiple orders plus short probes | Claim-and-lock makes order consequential; probing measures some ability to improve after construction | Each probe competes with the final search for time and may rank long-run basins incorrectly |
+| Exact objective for acceptance | A path can gain bonuses while destroying other matches; whole-board scoring includes that external cost | Exact acceptance does not make the candidate generator farsighted; coordinated changes may be absent |
+| Incremental hill climbing with kicks | Cheap local previews and a saved best board give useful anytime improvement | The tested late-acceptance variants lost; that does not establish that all annealing schedules or larger neighborhoods must fail |
+| Random widening rather than ownership-guided widening | The simpler operator won end-to-end after accounting for its cost | It samples conflicts indirectly and may miss coordinated repairs |
+| Python and a single-file bundle | Fast iteration and a simple tester/submission interface | Evaluation throughput and non-preemptible work limit experimentation; a compiled speed-up must be measured |
+
+The routing graph has O(N² × 2^k) states for k required bonuses and constant out-degree, so one heap-based search costs O(V log V) time and O(V) memory. The shipped plans assign one waypoint per planned pair; the bitmask representation supports more. A tile preview is local in *affected paths*, not constant-time: a changed tile on a long path can require retracing much of the board. This matters precisely because the final solutions contain a dominant long path.
 
 ---
 
@@ -213,7 +226,7 @@ Validated on 60 seeds: 24 used during development and 36 held out. The held-out 
 
 ### 5.2 Throughput (Tier 1, +20.3%)
 
-The incremental evaluator (§3.7) changes *how fast* the search runs, not *what* it does. A regression test confirmed that, given the same number of passes, the old and new search produce bit-identical boards. More of the same beneficial search can only help, so the 100-seed result was monotone: every seed equal or better. The largest gains came on the most time-starved large boards (+108% and +125% on two N = 20 seeds).
+The incremental evaluator (§3.7) changes *how fast* the search runs, not *what* it does. A regression test confirmed that, given the same number of passes, the old and new search produce bit-identical boards. For a fixed trajectory, extending the saved-best search cannot hurt. The historical 100-seed comparison was also monotone: every seed equal or better. The largest gains came on the most time-starved large boards (+108% and +125% on two N = 20 seeds).
 
 ### 5.3 Pair-level operators (Tier 2, +5.9%)
 
@@ -228,7 +241,7 @@ Widening (§3.6) was built only after the diagnosis above, that pairs are blocke
 3. Random/1 read 50.85 on the leaderboard, still unexpectedly low. Widening calls could not be interrupted, so one slow call on slower hardware could push the solver past its deadline. Trimming the internal deadline from 9.0 s to 8.5 s cost 0.4% locally and read **55.0**.
 4. Random/2 rounds then won locally by +1.02% over 250 seeds and read **51.0**. It was the second time a configuration with a higher *worst-case per-call cost* had won locally and read lower on the grader.
 
-The second attempt ("take-2") addressed the mechanism rather than the symptom. Widening rounds now check the deadline before starting, so a late call can overrun by at most one Dijkstra. The `pairs_per_round` dimension, never swept the first time, was swept as well. Random, 2 rounds, 10 pairs gave +6.8% over 70 seeds against the adaptive-budget base. Its +2.3% margin over the next-best configuration was stable across three disjoint seed segments (+2.2%, +2.8%, +2.0%). It shipped in the final build.
+The second attempt ("take-2") addressed the mechanism rather than the symptom. Additional widening rounds now check the deadline before starting. A round still permits up to four conflict-retry searches, so this limits chaining rather than guaranteeing a one-Dijkstra overrun. The `pairs_per_round` dimension, never swept the first time, was swept as well. Random, 2 rounds, 10 pairs gave +6.8% over 70 seeds against the adaptive-budget base. Its +2.3% margin over the next-best configuration was stable across three disjoint seed segments (+2.2%, +2.8%, +2.0%). It shipped in the final build.
 
 ### 5.5 The deadline as a first-class parameter
 
@@ -252,16 +265,16 @@ Probe selection (§3.4) was tested as a 2×2 against the 8.5 s build on 40 seeds
 | Route library, two styles, bounded-hop DP | "Longest route within slack" via a layered DP; acyclic by construction, so no negative-cycle risk | +1.7% matched, −0.3% score; read 48.9 on the leaderboard | Pairs that would match anyway lost path length; construction time came out of search |
 | Upgrade matched paths (Tier 6) | Reroute a matched pair's corridor to lengthen it or pick up a bonus | −2.8% (−7.6% combined with the route library) | The same externality inside the search loop |
 | Medium-distance-first ordering | Route pairs from the low-match distance band first | −4.6% (20 W / 55 L) on fresh seeds 401–500 | Same externality, a third time; the probe was also fooled by basins that look good early |
-| Multiprocessing attempt selection | Polish several attempts in parallel processes | **+12.1%** locally (30 seeds); read 48.98 | The grader is effectively single-core; process overhead without parallelism |
+| Multiprocessing attempt selection | Polish several attempts in parallel processes | **+12.1%** locally (30 seeds); read 48.98 | Consistent with limited effective parallelism or process overhead; not isolated by the aggregate reading |
 | Adaptive probe depth + top-2 confirmation | Probe close contests deeper; re-check the top two | −5.4% (40 seeds), worst seed −94% | Probe time is taken from the eventual winner's search |
-| Late-acceptance hill climbing [5] | Accept moves no worse than the score L steps ago | −6.7% (L = 300), −19.5% (L = 1500) | About 80k evaluations per case is too short an anneal; tolerated downhill steps displace improving ones |
+| Late-acceptance hill climbing [5] | Accept moves no worse than the score L steps ago | −6.7% (L = 300), −19.5% (L = 1500) | The tested schedules lost at this throughput; downhill moves may displace useful improvements, but that mechanism was not isolated |
 | Pair-loop multiplier | Run the pair pass several times per tile pass, since the tile pass used 91–95% of search time at large N | +2.2% in a simplified harness; −1.7%, −3.5%, +1.0% (×3, ×5, ×8) through the real pipeline | The harness re-implemented part of the pipeline; the effect did not survive the real one |
 
 Three patterns account for most of these:
 
-1. **The contention externality** (route library, path upgrades, medium-first ordering). Any change that makes one path longer or better is paid for by the shared tile pool, and a pair-at-a-time framework cannot price that cost.
+1. **The contention externality** (route library, path upgrades, medium-first ordering). Any change that makes one path longer or better is paid for by the shared tile pool, and the tested candidate generators did not manage that cost well, even when acceptance used the whole-board objective.
 2. **Myopic proxies.** Construction score picked the wrong attempt 7 times in 9, and a 0.4 s probe was fooled by basins that look good early. A proxy one step removed from the real objective can rank candidates in the wrong *order*, not just with more noise.
-3. **Scarce throughput.** At roughly 10,000 previews per second, the search cannot afford acceptance rules that spend evaluations going downhill, or probes that take time from the winner.
+3. **Scarce throughput.** At roughly 10,000 previews per second, the tested downhill-acceptance settings and deeper probes did not repay their time cost. This does not rule out other schedules or neighborhoods.
 
 A related diagnostic closed a line of work before it was built. From the final board of each of 9 real cases, an offline oracle searched for path upgrades with generous slack and a 3-second-per-pair budget. It found +0.34% in total. The same wall-clock time handed back to plain local search found +4.14%. The premise that construction bakes in short paths which search cannot recover had almost no headroom.
 
@@ -311,16 +324,20 @@ With the leaderboard unable to separate builds, the last day ran on a rule fixed
 
 ### 8.1 Leaderboard
 
-| | Provisional score |
-|---|---|
-| First design (12 Aug) | 35.6 |
-| Best single reading (14 Aug) | 55.0 |
-| Final submission (18 Aug) | 52.4 |
-| Leaders at the end | 97–99 |
+| Measurement | Score | Rank / scope |
+|---|---|---|
+| First design (12 Aug) | 35.6 | Provisional |
+| Best single reading (14 Aug) | 55.0 | Provisional, an earlier configuration |
+| Last submission, `wash` (18 Aug) | 52.35925 | Provisional rank 53 |
+| **Final testing, `wash`** | **51.66780** | **55 of 75 listed entrants** |
+| Winner, `asi1024` | 99.79022 | Final rank 1 |
+| Tenth place, `maniek` | 97.56360 | Final rank 10 |
+
+Final standings are transcribed from the supplied saved standings PDF (pages 1–5 and 23; provenance in [evidence.md](evidence.md), complete table in [data/leaderboard.csv](data/leaderboard.csv)). The `wash` row matches the recorded last provisional score 52.35924643291182. The final/provisional difference is −0.69144 points across different test sets; it is not an estimate of a code change's effect.
 
 ### 8.2 Reproduction of the final build
 
-For this report the final build was run on seeds 1–250 against the official tester (4 threads, `PYTHONHASHSEED=0`): 0 failed cases, mean runtime 9.52 s, maximum 9.54 s. Every output was replayed and re-scored by an independent script (`scripts/summarize_run.py`), which agrees with the tester on all 250 seeds. The same script rebuilds each seed's first construction attempt, to separate what construction achieves from what search adds.
+For the original report, the repository build was run on seeds 1–250 against the official tester (4 threads, `PYTHONHASHSEED=0`): 0 failed cases, mean runtime 9.52 s, maximum 9.54 s. The archived report records agreement with the tester on all 250 outputs replayed by `scripts/summarize_run.py`. That script imports the solver's `trace_path` and uses `evaluate_grid` for construction and hidden-board measurements; it is not an independent implementation of all scoring rules. This revision re-aggregated the checked-in CSV and replayed the retained seed-199 output, rather than repeating all 250 timed runs. The same script rebuilds each seed's first construction attempt, to separate what construction achieves from what search adds.
 
 **Table 5.** The final build on seeds 1–250, by board size.
 
@@ -332,6 +349,8 @@ For this report the final build was run on seeds 1–250 against the official te
 | 15–17 | 47 | 94 | 69.3% | 75.7% | ×4.1 | 83% | 9.7% | 447,849 |
 | 18–20 | 30 | 112 | 69.6% | 75.5% | ×3.4 | 81% | 8.6% | 660,667 |
 | **All** | **250** | **65** | **69.7%** | **75.8%** | **×4.1** | **79%** | **9.8%** | |
+
+The score-ratio median excludes two seeds whose construction score is zero (248 valid ratios overall). Connection rates pool matched pairs over target pairs; they are not unweighted means of per-case percentages.
 
 ### 8.3 Anatomy of a solution
 
@@ -360,28 +379,76 @@ During the match the development log recorded match rates of 21–31% on large b
 
 ---
 
-## 9. The gap to the top
+## 9. Postmortem: the gap to the top, evidence and hypotheses
 
-**The hidden board is a proof of feasibility, not a good answer.** Re-running the tester with `-showOriginal` recovers the board each case was generated from, where every pair is connected. Rotating every tile back to it is a valid solution, and it never beats the final build (0 of 250 seeds). It scores 0 on 89 seeds, because rotating every scrambled tile back (3.4× as many moves as the solver uses, in the median case) costs more than the random paths are worth. Its median score is 0.17× the solver's. The prize is not connecting all pairs as the generator happened to, but connecting them *while* building long, bonus-threaded paths with few moves.
+### 9.1 The outcome and the size of the gap
 
-**Remaining headroom, factor by factor.** A provisional score of 52 means the solver's raw score is about half the best competitor's on a typical case, so the leaders score roughly 1.9× more. The score is a product, and both factors have room:
+The final outcome was **51.66780, rank 55/75**. The winner scored 99.79022, a gap of **48.12242 points** and **1.931× our mean normalized score**. Tenth place scored 97.56360, or 1.888× ours. This is a broad leading group, not just one outlier. These are ratios of averages of `raw / case-best`, not median per-case raw-score ratios. The saved standings contain no per-case scores or competitors' code, so they cannot identify where each leader gained or which algorithm they used.
 
-- *Match count.* 24% of pairs remain unconnected. Connecting all of them is worth up to ×1.32 on the multiplier, plus whatever path value those pairs carry.
-- *Path value.* The best path uses 1.44 chords per tile out of 3. The full 3× is not reachable, since other paths need chords, but raising it to 2 chords per tile would be worth about ×1.4 on the term that carries 79% of the path score.
+### 9.2 What our solutions establish
 
-Either factor could account for most of the gap, and the leaders probably gained on both. This analysis is inferred from the score's structure, not from their code.
+**Joint feasibility is not the objective.** The generator's hidden board connects every pair, but rotating back to it beats our output on 0 of the 250 archived seeds. It scores zero on 89; its median score is 0.17× ours and its median move count is 3.4× ours. It is a feasibility witness, not an optimum or an upper bound. Maximizing match count alone can lose most of the score.
 
-**Why this architecture plateaued.**
+**Both factors matter, and they interact.** Write the positive score as `F = K × V`, with `V = T − M × m`. For a proposed change,
 
-1. **It optimizes the wrong unit.** Construction minimizes the rotation cost of each pair in turn. The objective rewards one board-spanning, bonus-threaded path multiplied by the number of connections. Search found that structure one tile at a time, but construction never aims at it, and every claim-and-lock decision constrains it.
-2. **Throughput.** At about 100 µs per preview, Python affords roughly 80,000 evaluations per case. A compiled implementation of the same incremental idea could plausibly run 100–1,000× more. That buys proper annealing over orientations [6], in which contention between pairs can resolve gradually instead of through explicit widening.
-3. **I read the generator late.** The tester source states outright that every exit is paired and that all pairs are jointly feasible. On day one, that would have pointed at match count and path structure as the whole game, and at a different design.
+```
+ΔF = V × ΔK + K × ΔV + ΔK × ΔV
+```
 
-**What I would do differently.** Read the generator and the scoring code first, then derive what an ideal solution looks like before choosing an algorithm; here that means "one long path through every bonus tile, multiplied by the number of connections". Choose a compiled language whenever a problem rewards search volume. Spend the first half of the week on architecture-level experiments and the second half on tuning. In this match about 90% of the effort went into a design whose ceiling was in the mid-50s, tuned close to its measured optimum.
+This explains why the evaluator must assess the entire board. A new pair increases K, but its routing can shorten the dominant path or consume extra rotations and reduce V. On the archived sample, 75.8% of pairs are connected, the dominant path contributes a median 79% of T, and its median length is 1.44 chords per tile. These statistics point to coordinated match/path improvements, not a strategy of maximizing either factor separately.
+
+For scale only, `1 / 0.758 ≈ 1.32` is the multiplier suggested by completing the pooled missing matches while holding net path value fixed. It is neither a predicted average gain nor an attainable bound. Similarly, changing a dominant path from 1.44 to 2 chords per tile at unchanged bonuses and other paths would multiply its own contribution by 1.39, and a representative 79%-share total T by about 1.31. Combining separate medians is illustrative; these counterfactuals compete for the same chords and cannot be multiplied into a forecast. The board's 3-chords-per-tile capacity is not a realizable target for one path while preserving all others.
+
+### 9.3 What worked, and where our process failed
+
+| Finding | Evidence | Postmortem conclusion |
+|---|---|---|
+| Correctness and throughput paid | Routing/budget fixes +7.5%; incremental evaluation +20.3% in their historical comparisons | Keep the frozen evaluator and commit-by-commit checks; the local evaluator was a successful investment |
+| Construction and the score optimize different things | Construction connects 69.7% of pairs; final search reaches 75.8% but improves score by a median 4.1× | Cheap pair routing is a useful initializer, but the objective's path structure deserved an experiment on day one |
+| Pair-by-pair improvements export costs | Route libraries, matched-path upgrades and medium-first orders lost end-to-end | Any proposed backbone constructor must jointly repair displaced pairs; simply forcing longer paths repeats a measured failure |
+| Diagnosis was too late and partly wrong | The generator was read late; the logged 21–31% large-board match rate does not reproduce (§8.5) | Audit denominators and inspect actual outputs before selecting an optimization target |
+| Official feedback did not isolate causes | An unchanged build read 55.0 then 49.7; several locally winning settings read lower online | Deadline risk and single-core behavior are plausible explanations, not demonstrated causes from aggregate standings alone |
+| Tuning reached diminishing returns | Ten final-day challengers missed the pre-committed release bar | Keep the validated build, but reserve earlier time for alternatives; a tuning plateau does not prove an architectural ceiling |
+
+### 9.4 The hypotheses, and experiments that could reject them
+
+**Hypothesis A: coordinated neighborhoods matter more than another routing parameter.** A board-wide orientation search or a multi-path destroy-and-repair move could trade path value against lost matches together. Test it against the frozen solver, initially from identical saved boards, then through the complete pipeline. Record K, T, move penalty, dominant-path share and runtime alongside score. If gains disappear at equal production time, the proposed neighborhood has not solved the bottleneck. The negative route-library and path-upgrade results (§6) are mandatory controls.
+
+**Hypothesis B: throughput limits the useful search.** The measured N=20 preview cost is about 96.5 µs, and the development log estimates roughly 80,000 evaluations per case. A C++ port is worth testing, but there is no measured 100–1,000× speed-up and no evidence that the leaders use annealing. First compare the same algorithm at equal work to check semantics; then measure serial equal-time score curves at several budgets. Only after that should acceptance schedules and neighborhoods change. A port that runs faster but does not improve score would weaken throughput as the main explanation.
+
+**Hypothesis C: explicit bonus-path planning improves initialization.** The dominant path emerges from tile flips rather than being planned. Compare the current initializer, a soft bonus-backbone initializer, and randomized orientations under the same total budget and final search. Allow the backbone to be broken when the full objective improves. Reject the idea if it increases dominant-path value while lowering whole-board score, as earlier greedy route upgrades did.
+
+These are experiments on our solver, not reconstructions of the top entrants. The current evidence supports a substantial unexplained gap and specific failure modes; it does not establish one sufficient explanation.
 
 ---
 
-## 10. Lessons
+## 10. If I started again: a redesign
+
+```mermaid
+flowchart LR
+    R[Read scoring and generator] --> A[Baseline score anatomy]
+    A --> E[Exact incremental evaluator and oracle]
+    E --> C[Compare cheap routing, soft backbone, random starts]
+    C --> S[Global orientation search and joint path repair]
+    S --> V[Equal-time evaluation on untouched seeds]
+    V --> F[Freeze source, bundle, environment and results]
+```
+
+**Day one: understand the attainable structure before committing to a search.** Read the generator and scorer together. Run a baseline over sizes, bonus counts and penalties, and measure match count, total path value, dominant-path share and rotation cost. Replay a handful of outputs against the tester. Derive `ΔF` above, and treat the hidden board only as a feasibility witness. This would have prevented the incorrect low-match-rate diagnosis from defining the optimization agenda.
+
+**First half of the week: compare architectures while replacement is still affordable.** Retain the Python baseline as an oracle and prototype a compact compiled orientation engine with precomputed neighbors and six rotation wirings. Measure preview throughput before assuming a language benefit. Use a small factorial comparison of initializers and neighborhoods to separate construction quality from search quality; include existing routing, ordinary tile moves and the failed greedy upgrades as controls. Start any annealing experiment with a measured score-versus-work curve and an explicit schedule, not the assumption that accepting worse states must help.
+
+**Make coordinated repair concrete.** Select a region touching the dominant path and one or more unmatched pairs, free their affected orientations, and propose a small joint repair. Evaluate its complete `K × V` change, allow temporary loss only through a tested acceptance rule, and keep the best board separately. Track damage to other pairs. A soft backbone is a candidate-generating hint, not a permanent tile claim. This design is proposed work; it has not been implemented or validated here.
+
+**Budget in reproducible work units, with a wall-clock guard.** Count previews, traced chord steps and routing expansions for comparable experiments; calibrate their costs on the target-like single-core setup. Check the deadline inside expensive route work and between conflict retries, and reserve time for output. Work counts improve reproducibility, while the independent clock guard handles unexpectedly expensive paths. The existing between-round guard is useful but incomplete.
+
+**Second half: confirm on fresh seeds and freeze the actual submission.** Screen cheaply, freeze candidates, then compare at the full time limit on untouched seeds. Report paired score ratios, wins/losses, size/bonus/penalty slices and runtime tails; keep a fixed local competitor panel for a normalized-score proxy and label it as local. Use repeated serial runs for wall-clock policies. Preserve the final-day ≥2%/100-fresh-seed/zero-failure rule, and archive the exact uploaded bundle hash with its configuration and submission ID. A test set used to diagnose a failure becomes development data for its fix.
+
+The changes are about the order of work: discover the score structure first, measure the implementation cost second, compare search formulations early, and tune only after those tests. Keep the proven evaluator, independent Java scorer and careful negative-result log throughout.
+
+---
+
+## 11. Lessons
 
 1. **Make it correct, then make it fast, then make it clever.** The two largest gains were a bug fix with full budget use, and a pure speed-up.
 2. **Prove the invariant, then test every commit against frozen ground truth.** That caught a double-counting evaluator before it ever shipped.
@@ -393,19 +460,20 @@ Either factor could account for most of the gap, and the leaders probably gained
 
 ---
 
-## 11. Threats to validity
+## 12. Threats to validity
 
 - **Hardware.** All local measurements come from one development machine, and the grader's hardware and load are unknown.
-- **Historical numbers.** Effect sizes in §5–6 come from the development log. They were measured against the build current at the time, on the seeds stated, and were not re-run for this report. Only §8–9 come from the fresh 250-seed run.
+- **Historical numbers.** Effect sizes in §5–6 come from the development log. They were measured against the build current at the time, on the seeds stated, and were not re-run for this report. The solution-anatomy claims in §8–9 come from the archived 250-seed report run; §10 is a proposed redesign. This revision re-aggregated that archive, not a new 250-seed experiment.
 - **Seed overlap.** Seeds 1–250 include seeds used during development (mostly 1–100). That is acceptable for describing the final build, not for claiming generalisation; the out-of-sample blocks in §7.2 served that purpose.
 - **Provisional scores.** They cover 100 cases, are relative to a moving field, and are noisy. Final standings come from 5,000 different cases.
-- **Inferences about the leaders** are drawn from the score's structure, not from their code.
+- **Inferences about the leaders.** Their source and per-case scores were not available in the supplied evidence. Standings establish the aggregate gap, not its mechanism.
+- **Provenance and independence.** The report replay script shares solver tracing code. The full original 250 input/output pairs are not checked into this report; the seed-199 replay and CSV checks do not replace that archive. Source syntax trees match the development checkout, which is not by itself proof of the exact uploaded artifact. See [evidence.md](evidence.md).
 
 ---
 
-## 12. Conclusion
+## 13. Conclusion
 
-I built a correct, measurable and well-instrumented Python heuristic for a combinatorial puzzle, and improved it from 35.6 to a final 52.4 through correctness fixes, a proven incremental evaluator, contention-aware search operators and a deliberately managed time budget. The engineering held up: zero failed cases, a frozen ground truth, and every change measured end to end. The ceiling came from the architecture, which optimized per-pair routing cost while the objective rewarded one long, bonus-threaded path multiplied by the number of connections. The most transferable lessons are about method: derive what a good solution looks like before designing the search, give every expensive operation a bounded tail, and know exactly what each measurement can and cannot see.
+I built a measured Python heuristic and improved its provisional score from 35.6 to a last reading of 52.4, with a final score of **51.66780 (rank 55/75)**. Correctness fixes, incremental evaluation and contention-aware search produced useful gains. The archived local run reports zero failures on 250 cases, but the winner's mean normalized score is still 1.931× ours. Our solutions reveal a valuable structure: many connected pairs multiply the value of one long bonus-threaded path. Cheap sequential routing does not target that structure directly. Whether coordinated search, a better initializer or higher throughput closes most of the gap remains untested; the postmortem specifies how to distinguish them. The next attempt should begin with score anatomy and controlled architecture comparisons, while retaining the evaluator checks and release discipline that worked.
 
 ---
 
@@ -447,7 +515,7 @@ Paths are relative to the `tc_marathon_166/` directory of this repository.
 | `baseline/HexTiles.java` | The day-one greedy baseline: per-pair Dijkstra in nearest-first order, no search |
 | `report/` | This report, its figures, the data behind them, and `make_figures.py` |
 
-The source is the final submission. The only edits are three comments in `solver.py` and the header of `baseline/HexTiles.java`, which were out of date. The solver's syntax tree is unchanged.
+The source is the repository's documented final configuration. This revision compared all seven Python source files with the development checkout: their syntax trees match. That checks the two checkouts, not an independently identified uploaded ZIP; no solver implementation was changed for this report.
 
 ## Appendix B. Reproducing the results
 
@@ -457,23 +525,26 @@ pip install -r requirements.txt
 # Download the offline tester from the match page and place it at tools/tester.jar (see tools/README.md).
 
 # Final build on seeds 1-250, saving every input and output (~10 minutes on 4 threads)
-mkdir -p runs/final runs/hidden
+mkdir -p runs/audit-final runs/audit-hidden runs/audit-data
 PYTHONHASHSEED=0 java -jar tools/tester.jar -exec "python3 src/main.py" -seed 1,250 \
-    -threads 4 -novis -printRuntime -saveSolInput runs/final -saveSolOutput runs/final \
-    > runs/final/scores.txt
+    -threads 4 -novis -printRuntime -saveSolInput runs/audit-final -saveSolOutput runs/audit-final \
+    > runs/audit-final/scores.txt
 
 # The hidden boards, for §9
 java -jar tools/tester.jar -exec "python3 scripts/read_only.py" -seed 1,250 -threads 8 \
-    -novis -showOriginal -saveSolInput runs/hidden
+    -novis -showOriginal -saveSolInput runs/audit-hidden
 
-python3 scripts/summarize_run.py runs/final report/data runs/hidden   # writes seeds.csv, match_by_distance.csv
-python3 report/make_figures.py                                       # writes report/figures/*.png
+python3 scripts/summarize_run.py runs/audit-final runs/audit-data runs/audit-hidden   # writes seeds.csv, match_by_distance.csv
+python3 report/make_figures.py                                       # uses archived report/data; writes figures
 ```
+
+Use a new run directory for each comparison and record source/bundle/tester hashes, Python/Java versions, environment, seeds and concurrency. The original four-thread setting reproduces the historical protocol; use serial runs for new throughput comparisons.
 
 `report/data/` holds every number plotted:
 
 - `seeds.csv`: one row per seed of the 250-seed run, including construction-only and hidden-board scores;
 - `match_by_distance.csv`: target pairs and connected pairs by exit-to-exit distance;
+- `leaderboard.csv`: all 75 final standings rows extracted from the supplied PDF;
 - `submissions.csv`: every leaderboard reading recorded in the development log;
 - `changes.csv`: the measured effect of every substantive change (§5–6);
 - `board_seed199.in`, `.out`: the case drawn in Figure 1 and the solver's answer.
@@ -492,4 +563,4 @@ Scores from a fresh run will differ slightly from the CSVs, because the search i
 | Probe | A short local search used to rank construction attempts |
 | Widening | Freeing more pairs' tiles when rerouting a stuck pair (§3.6) |
 | Kick | A random perturbation applied when local search stalls |
-| Raw / provisional score | The per-case score from the formula / the 0–100 leaderboard score relative to the field |
+| Raw / provisional / final score | Per-case formula / relative leaderboard score on 100 provisional cases / relative score on 5,000 final cases |
