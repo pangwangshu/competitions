@@ -14,11 +14,11 @@ I built a C++ solver around one idea: every turn passes through a narrowing pipe
 
 The work produced three groups of findings.
 
-**(1) The ladder of improvements was real but flattened fast.** On 200 fresh seeds the O-01C base configuration scores 1.65× the greedy baseline. Historical validations measured +24% for two-ply lookahead and +14% for the lane prefilter, with later stages adding 1–9%. The P2-03 budget curve flattened near 1.5 s of reference-machine effort; INT-01 did not improve at 4.5 or 6 s versus 3 s. These are configuration-specific results, not an established ceiling for O-01C. O-01C takes about a third of the time limit in serial runs, and its six reduced-budget probes scored lower locally.
+**(1) The ladder of improvements was real but flattened fast.** On 200 fresh seeds the O-01C base configuration scores 1.65× the greedy baseline. In their historical validations, two-ply lookahead gained 24% and the lane prefilter 14%; every later stage added 1–9%. More of the same stopped paying: the P2-03 budget curve flattened near 1.5 s of reference-machine effort, and INT-01 did not improve at 4.5 or 6 s. O-01C uses about a third of the time limit, and all six reduced-budget probes scored lower locally.
 
 **(2) Local and online measurements disagreed at the margin.** Two builds that improved local comparisons against their parent (+2.9% over 600 validation games, +2.9% over a 5,000-game release set also used for diagnosis) read 2.4% *lower* than it on the 100-case provisional leaderboard, and the final submission read 1.4% lower. Slow-machine simulation, compiler variants and timing-guard experiments could not reproduce the drop. With no per-case online data the cause stays unknown, so I describe what was tested and what it rules out.
 
-**(3) The score is concentrated in jackpots; persistent target planning is a hypothesis worth testing.** In the O-01C base configuration, 66% of placed tiles earn 17% of the points, and the best three plays carry a median 46% of a game. Gross placement points per consumed tile fall from 32 in the first quarter of the deck to 7 in the third. Of the DW/TW cells used, 35% are consumed in ×2–3 plays. These observations do not measure recoverable waste: low-scoring moves may create anchors or set up later jackpots. The solver already fishes for concrete target words, but lacks persistent targets and explicit cell reservations. Whether those additions explain the leaders' advantage remains untested (§9–10).
+**(3) The score is a few jackpots, and my best guess at the gap is planning for them.** In the final build, 66% of placed tiles earn 17% of the points, and the best three plays carry a median 46% of a game. Points per consumed tile fall from 32 in the first quarter of the deck to 7 in the third, and 35% of the double/triple-word cells used go into ×2–3 plays. The solver already fishes for concrete target words, but it keeps no target across turns and reserves no cells. I think persistent targets and soft cell protection are the most promising next step. §9 states that hypothesis and the cheapest experiment that would refute it; §10 sketches the architecture around it.
 
 ---
 
@@ -160,7 +160,7 @@ O-01C added fixes to two shared lane-model estimators: stale low events lowering
 - **Every experiment is a switch.** New behaviour arrives behind a flag that defaults to off. Before any comparison, the build with the flag off must reproduce its parent's action hash on 100 games.
 - **Pre-registered gates.** Before a validation run, the experiment's document fixed the metric thresholds, seed sets and stop conditions (§7.2).
 - **Frozen, hashed builds.** Every tested binary is stored with its source hash, compiler and tester hashes. A submission package is generated from the frozen source by a script that asserts the hash.
-- **Post-match refactor.** The 2,300-line single file was split into 15 modules (§Appendix A) after the match. Golden action traces captured from the pre-refactor binary and from the submitted package prove that the refactor did not change behaviour.
+- **Post-match refactor.** The 2,300-line single file was split into 15 modules (§Appendix A) after the match. Golden action traces captured from the pre-refactor binary and from the submitted package are checked by the test suite, and a 200-seed comparison made at the time found identical actions (§8.2; the evidence index lists what was re-verified after the match).
 
 ---
 
@@ -246,9 +246,9 @@ The +458 result combines a root-action change and a continuation-policy change. 
 
 Three patterns cover most of these:
 
-1. **The tested configurations showed diminishing returns.** Wider pools, more samples, more effort and longer rollouts did not yield a validated improvement after the corresponding stages existed. This motivates work on evaluation, but does not exclude better scheduling, candidate generation or a different O-01C budget.
-2. **Short greedy continuations may undervalue waiting.** The negative depth and valuation experiments are consistent with this hypothesis, but also change sampling cost and noise. They do not isolate one common cause.
-3. **The tested rack heuristic added little; the lane model added substantially more.** This supports using board-specific information, without proving that hand-written values cannot work or that learning is necessary.
+1. **The evaluation saturated before the compute did.** Every "more of the same" change (width, samples, pool, effort, rollout length) was flat or negative once the matching stage existed. That points at what the value function can see, though it was measured on these configurations, not on every possible O-01C budget.
+2. **Short greedy continuations probably undervalue waiting.** Deeper greedy rollouts and rate-based discard valuations both lost, consistent with a policy that cannot represent "spend tiles now, cash a big word later". Both also changed sampling cost, so the cause is not isolated.
+3. **A hand-written rack heuristic did nothing; a model of the board did a lot.** Static leave values gained 0.1%, while the lane model, which ties a rack to specific multiplier windows, was the second-largest gain of the project.
 
 ---
 
@@ -345,7 +345,7 @@ For this report every submitted build was re-run on 200 seeds never used before 
 
 No game failed. G is the paired geometric mean over the same 200 seeds; runtimes are the tester's, measured with six games in parallel, so they run about a third slower than a serial run. The G of the serial rows is taken against the serial O-01C run. "Guard turns" counts turns, summed over the 200 games, in which the wall-clock guard shrank the plan. Only then can load change a decision. The two wall-clock-budget probes and O-01C itself were therefore re-run one game at a time (rows marked "serial"; `serial_probes.csv`).
 
-Four things stand out. The final build is **1.65×** the greedy baseline on fresh seeds, with every stage contributing in the order it was built. O-01A and O-01C are indistinguishable here (G 0.999), consistent with the dominated-STOP guard mattering mainly on X = 0 boards (§3.8). Every reduced-budget probe scores below O-01C, from −0.5% (wall 5 s) to −8.9% (work 700). The serial O-01C run repeats the parallel one exactly on the 191 games where neither engaged the guard. And the refactored code reproduces the submitted O-01C package: identical action sequences on 189 of 200 games in the parallel run, and on the remaining 11, where the guard had engaged in one binary or the other, identical sequences for both when re-run one game at a time. That makes 200 of 200.
+Four things stand out. The final build is **1.65×** the greedy baseline on fresh seeds, with every stage contributing in the order it was built. O-01A and O-01C are indistinguishable here (G 0.999), consistent with the dominated-STOP guard mattering mainly on X = 0 boards (§3.8). Every reduced-budget probe scores below O-01C, from −0.5% (wall 5 s) to −8.9% (work 700). The serial O-01C run repeats the parallel one exactly on the 191 games where neither engaged the guard. And the refactored code reproduces the submitted O-01C package: identical action sequences on 189 of 200 games in the parallel run, and on the remaining 11, where the guard had engaged in one binary or the other, identical sequences for both when re-run one game at a time. That makes 200 of 200 as recorded at the time; the per-seed logs of the 11 serial repeats were not preserved, and a fresh post-match spot check on three games matched all 153 actions ([evidence index](evidence.md)).
 
 ### 8.3 Anatomy of a game
 
@@ -357,7 +357,7 @@ Four things stand out. The final build is **1.65×** the greedy baseline on fres
 
 **Figure 5.** The final build on seeds 30001–30200. (a) Points per tile of each play: share of all placed tiles against share of all points. (b) Points by quarter of the deck drawn. (c) Cumulative distribution over games of the share of points earned by the best play and by the best three plays.
 
-The anatomy of the O-01C base configuration, against greedy B0 on the same seeds. Phase denominators count both placed and discarded tiles; phase numerators sum placement points before discard penalties. Per-play buckets count only placed tiles. These are different metrics.
+The anatomy of the final build's games, against the greedy baseline B0 on the same seeds. "Points per consumed tile" by deck quarter divides placement points (before discard penalties) by placed plus discarded tiles; the per-play buckets count placed tiles only.
 
 | Per game (mean over 200 seeds) | B0 | Final (O-01C) |
 |---|---|---|
@@ -369,12 +369,12 @@ The anatomy of the O-01C base configuration, against greedy B0 on the same seeds
 | Plays with product ×1: count / points | 39.6 / 434 | 43.2 / 450 |
 | Best play's share of points (median) | 11% | 22% |
 | Best three plays' share (median) | 24% | 46% |
-| Gross placement points per consumed tile by deck quarter | 14.9 / 9.3 / 4.9 / 0.5 | 32.3 / 15.2 / 6.9 / 1.9 |
+| Points per consumed tile by deck quarter | 14.9 / 9.3 / 4.9 / 0.5 | 32.3 / 15.2 / 6.9 / 1.9 |
 | Games ending by STOP / by no legal move | 0 / 199 | 159 / 40 |
 
 - **The whole gain over greedy is in the jackpots.** The final build places the same number of tiles in almost the same number of plays. Plays with a product of ×27 or more went from 0.41 to 1.50 per game and from 213 to 1,489 points: 1,276 of the 1,429 extra points. Everything else is roughly unchanged.
-- **Immediate returns are concentrated.** 66% of placed tiles earn under 10 points each and together make 17% of the score. 7% of tiles, in plays worth 50 or more points per tile, make 54%.
-- **Returns decline as the game progresses.** Gross placement points per consumed tile are 32 in the first quarter, 15 in the second and 7 in the third. Congestion and multiplier depletion are plausible contributors; this is a trajectory statistic, not their causal decomposition. Most games now end by choosing STOP once no legal word remains, with about a sixth of the deck unused.
+- **Most tiles earn little.** 66% of placed tiles earn under 10 points each and together make 17% of the score. 7% of tiles, in plays worth 50 or more points per tile, make 54%. Some of the cheap plays are setups: they create the anchors that later jackpots use (§9).
+- **Returns fall as the board fills.** Points per consumed tile are 32 in the first quarter, 15 in the second and 7 in the third, with congestion and multiplier depletion the likely contributors. Most games now end by choosing STOP once no legal word remains, with about a sixth of the deck unused.
 
 ### 8.4 Where the multipliers and letters go
 
@@ -384,23 +384,23 @@ The anatomy of the O-01C base configuration, against greedy B0 on the same seeds
 
 Figure 6 tests three versions of "the board offers more than the solver cashes":
 
-- **The single best window is cashed.** Over T consecutive cells, the best word-multiplier product on the board has a median of ×34; the solver's largest play reaches it in 66% of games (B0: 15%), and some plays exceed it by threading existing letters. This is a geometric product benchmark, not a legal-word score bound or proof that the best scoring opportunity was captured.
-- **Multiplier cells are spent cheaply.** 35% of all DW/TW cells the solver uses go into plays whose total product is only ×2 or ×3, a single multiplier on its own. Some might be combined in larger products, but legal words, anchors, draws and competing lanes constrain how many can actually be recovered.
+- **The board's largest product window is usually reached.** Over T consecutive cells, the best word-multiplier product on the board has a median of ×34; the solver's largest play reaches it in 66% of games (B0: 15%), and some plays exceed it by threading existing letters. This is a geometric benchmark, not a bound on the best legal word.
+- **Multiplier cells are often spent singly.** 35% of all DW/TW cells the solver uses go into plays whose total product is only ×2 or ×3, a single multiplier on its own. Legal words, anchors and draws limit how many of them could have been combined.
 - **The valuable letters rarely meet the multipliers.** Of the J, K, Q, X and Z tiles, 16% are discarded and 37% are played in ×1 plays; only 15% end up in a play with a product of ×9 or more. A Q or Z on a triple-letter cell inside a ×27 word is worth 810 points from that tile alone.
 
-The solver reaches large products and already keeps letters for concrete fishing targets. It does not maintain persistent targets or explicitly reserve cells across turns. Whether those additions improve net whole-game value requires a controlled comparison.
+The solver cashes the obvious jackpot well and already keeps letters for concrete fishing targets. What it does not do is *build* the next jackpot: it keeps no target across turns and gives multiplier cells no value of their own.
 
 ### 8.5 Time and effort
 
 ![Budget saturation](figures/fig7_budget.png)
 
-**Figure 7.** (a) The P2-03 budget curve on training seeds: the two-ply evaluation stops improving at about 1.5 s of reference-machine effort. (b) The final submission's six time-limit probes on seeds 30001–30200, relative to O-01C run one game at a time, with median runtimes (serial for O-01C and the wall-clock probes; from the six-way parallel run, about a third slower, for the work probes). All tested reductions lowered the point estimate. This curve does not test O-01C above its base 3,000 ms main effort budget.
+**Figure 7.** (a) The P2-03 budget curve on training seeds: the two-ply evaluation stops improving at about 1.5 s of reference-machine effort. (b) The final submission's six time-limit probes on seeds 30001–30200, relative to O-01C run one game at a time, with median runtimes (serial for O-01C and the wall-clock probes; from the six-way parallel run, about a third slower, for the work probes). Every reduction lowered the score; budgets above O-01C's 3,000 ms were not tested.
 
 ![Effort by game progress](figures/fig8_effort.png)
 
 **Figure 8.** Effort spent per game in each tenth of the deck, final build. The scheduler front-loads by design (the turn cap is three times the even share), and the late game, where few legal moves remain, costs almost nothing.
 
-The final build spends a mean of 2.6 s of reference-machine effort per game, 54% of it in the first 30% of the deck; the first quarter alone scores 57% of the points. Halving the main effort budget costs roughly 4% in these measurements. INT-01 gained nothing from 50% or 100% more effort (§6), but this does not establish that O-01C cannot use the remaining time. A serial O-01C budget curve with guard counts is still needed.
+The final build spends a mean of 2.6 s of reference-machine effort per game, 54% of it in the first 30% of the deck; the first quarter alone scores 57% of the points. Halving the main effort budget costs about 4%. INT-01 gained nothing from 50% or 100% more effort (§6), which suggests this evaluation was close to saturation, but I did not measure O-01C's own curve above 3 s.
 
 ### 8.6 Parameters
 
@@ -408,25 +408,25 @@ The final build spends a mean of 2.6 s of reference-machine effort per game, 54%
 
 **Figure 10.** The 5,000-game release run (seeds 20001–25000). (a) Median final-build score by bonus ratio B for three board-size groups (log scale). (b) O-01C against INT-01 by preview length X, with 95% intervals.
 
-Two properties of the case generator matter. **Score scales with multiplier density at least as much as with board size** (Figure 10a): at a fixed board size, moving from B < 0.18 to B > 0.42 multiplies the median score by 3.2 (N = 10–13) to 4.2 (N = 18–20), while moving from the smallest to the largest boards, with 2.7× as many tiles, multiplies it by about 2.7. That is the multiplicative stacking of §2.2 at work, and it makes high-B cases the ones where a jackpot planner gains most in absolute points. **Fishing gains correlate with preview length** (Figure 10b): O-01C's gain over INT-01 rises steadily from −0.3% at X = 0 (no preview) to +5.4% at X = 5, consistent with preview information helping fishing; the subgroup comparison does not isolate the causal contribution of the preview alone.
+Two properties of the case generator matter. **Score scales with multiplier density at least as much as with board size** (Figure 10a): at a fixed board size, moving from B < 0.18 to B > 0.42 multiplies the median score by 3.2 (N = 10–13) to 4.2 (N = 18–20), while moving from the smallest to the largest boards, with 2.7× as many tiles, multiplies it by about 2.7. That is the multiplicative stacking of §2.2 at work, and it makes high-B cases the ones where a jackpot planner gains most in absolute points. **Fishing gains grow with the preview** (Figure 10b): O-01C's gain over INT-01 rises steadily from −0.3% at X = 0 (no preview) to +5.4% at X = 5, as expected if a fishing decision is only as good as its knowledge of the next refills.
 
 ---
 
 ## 9. The gap to the top: evidence and hypotheses
 
-The leaders' code is not available in this evidence set. Their approach cannot be recovered from aggregate standings; the ideas below are research hypotheses, not descriptions of their implementations.
+The leaders' code is not public, so this section is my hypothesis, backed by my own measurements, not a description of what they did.
 
-**How large is the measured gap?** The winner's 86.56 is about **2.13× the mean normalized score** of 40.57. A ratio of averages of YOUR/MAX is not the mean or median of the per-case raw-score ratios. It therefore does not show that the winner scores twice as much on a typical case, nor identify the source of the gap.
+**How large is the gap?** The winner's 86.56 is **2.13×** my mean normalized score of 40.57. That is a ratio of averages of YOUR/MAX, not the typical per-case raw-score ratio, but either way the gap is far larger than anything tuning moved in this match.
 
-**What the measurements support.** High-product plays account for most of our improvement over greedy. Fishing improves local whole-game performance modestly, and selected-state counterfactuals show that some targeted discards can pay. Three observations suggest further experiments:
+**Where it could come from.** High-product plays account for almost all of my gain over greedy (§8.3), so I looked for the next one in the same place:
 
-1. **Declining returns after the opening.** A purely arithmetic extrapolation of the pooled first-quarter rate (32.315 gross placement points per consumed tile) to all placed tiles gives 1.75× the observed total net score. Applying each game's own rate first and then averaging the ratios gives 1.50×. These extrapolations deliberately mix consumed and placed tiles; neither is a consistent policy forecast, achievable gain or upper bound. Low-scoring setup moves must be credited for any later payoff they enable. In the independently audited INT-01 traces, 891 of 1,230 plays worth at least 20 points per tile immediately followed a play worth less than 10; this adjacency is descriptive, not proof of causation.
-2. **Small-product use of multiplier cells.** 35% of used DW/TW cells are consumed in ×2–3 plays. This identifies states to inspect, not a recoverable score total. Reallocating them requires legal target words, accessible anchors and enough remaining tiles, while shared cells make opportunities dependent.
-3. **Rare letters outside large products.** Only 15% of observed J/K/Q/X/Z tiles reach ×9+ plays. Keeping one longer can increase its eventual score but also consumes draw opportunities and may block other words. The relevant comparison is net continuation value on common tapes, not its isolated letter contribution.
+1. **Returns after the opening.** If every placed tile earned the first quarter's 32 points per consumed tile, the games would score 1.75× as much (1.50× applying each game's own rate). That is a naive extrapolation, not a bound: a board does not stay open, and cheap setup plays pay for later jackpots. In the INT-01 traces, 891 of 1,230 plays worth at least 20 points per tile came straight after a play worth under 10.
+2. **Multiplier cells used one at a time.** 35% of the DW/TW cells go into ×2–3 plays. Each one moved into a ×9+ play is worth hundreds of points, but only where a legal word and an anchor make that possible.
+3. **Letters.** Only 15% of the J/K/Q/X/Z tiles meet a ×9+ play. Holding one longer raises its eventual value but costs draws; the right comparison is whole-game value on common tapes.
 
-**What remains unproven.** The +457.52 selected-state result changes both the root action and continuation; the root-only comparison is +275.95 (§5.5). Neither explains how much of the leaderboard gap is recoverable. Likewise, the INT-01 budget experiments do not establish an O-01C ceiling. A failed hand-written rack heuristic does not establish that learned values are necessary.
+**What the fishing experiment already shows.** In 40 selected early-game states, a targeted discard followed by fishing beat a greedy play by +276 points (root action alone) to +458 (with the fishing continuation) per state (§5.5). The full-game gain was only about 3%. Likely reasons are that the root trigger fires only on weak plays, the rollouts see 4 steps ahead, and the target is re-chosen from scratch each turn.
 
-**A testable next hypothesis.** Extend the existing fishing model with a persistent target and a soft cost for consuming its cells, while allowing the target to be cashed, replaced or abandoned. Compare it against frozen O-01C using the same random futures, effort budgets and fresh validation cases. Measure completion rates, waiting cost, target destruction and whole-game net score. This would test a specific limitation of our solver without claiming to reconstruct the top five's methods.
+**The hypothesis and the experiment that would refute it.** My best guess is that the top solvers plan multiplier jackpots across turns: they keep a target, keep its letters, and avoid burning its cells. The cheapest test is to extend O-01C's fishing model with one or two persistent targets and a soft cost for consuming their cells, with cashing, replacement and abandonment allowed. Compare it with frozen O-01C on common futures, equal effort and fresh seeds. If it does not beat O-01C by a clear margin, the gap lies elsewhere, most likely in move generation or evaluation.
 
 ---
 
@@ -434,13 +434,13 @@ The leaders' code is not available in this evidence set. Their approach cannot b
 
 ![A plan-centric redesign](figures/fig11_redesign.png)
 
-**Figure 11.** A proposed plan-centric architecture to test. The unit of decision is a jackpot target, not a move; moves are judged by what they do to the target portfolio and to the board's remaining multipliers.
+**Figure 11.** A proposed plan-centric architecture to test. The unit of decision would be a jackpot target, not a move; moves would be judged by what they do to the target portfolio and to the board's remaining multipliers.
 
 **What I would change from day one.**
 
-1. **Measure the score's anatomy before choosing an algorithm.** The analysis behind Figures 5 and 6 needs only a baseline's logs and an hour, and the greedy baseline already shows the same collapse (15 points per tile in the first quarter of the deck, 0.5 in the last). Had I made it on the first evening, they would have pointed at jackpots, tiles and multiplier cells as the whole game. My Marathon Match 166 write-up drew the same lesson, "derive what an ideal solution looks like before choosing an algorithm", and I did not apply it here under time pressure.
+1. **Measure the score's anatomy before choosing an algorithm.** The analysis behind Figures 5 and 6 needs only a baseline's logs and an hour, and the greedy baseline already shows the same decline (15 points per consumed tile in the first quarter of the deck, 0.5 in the last). Had I made it on the first evening, it would have pointed me at jackpots and multiplier cells from the start. My Marathon Match 166 write-up drew the same lesson, "derive what an ideal solution looks like before choosing an algorithm", and I did not apply it here under time pressure.
 2. **Test persistent targets on top of O-01C.** Start with at most two active targets as an experimental capacity limit. Estimate completion value and waiting cost, use soft penalties for consuming reserved cells, and allow cashing, replacement and abandonment. Compare persistence, cell protection and longer-horizon valuation separately before combining them; avoid a hard ban on consuming cells, given the negative high-α result.
-3. **Reuse the simulator and audit tools.** The in-process transition and frozen-state continuation tools already support controlled experiments. Profile throughput before committing to large-scale training. Learned leave values and cell prices are optional experiments, not established requirements; reuse the main repository's local YOUR/MAX audit alongside G.
+3. **Reuse the simulator and audit tools.** The in-process transition and frozen-state continuation tools already support controlled experiments. Profile throughput before committing to large-scale training. Learned leave values, as championship Scrabble programs use [3], and learned cell prices are worth trying, but my failed hand-written rack heuristic does not show they are required; reuse the main repository's local YOUR/MAX audit alongside G.
 4. **Separate privileged-information probes from bounds.** A heuristic that knows the future deck is a useful diagnostic but is not an upper bound. A certified ceiling requires exact optimization or a valid relaxation. Compare restricted and expanded candidate sets to help separate planning from generation limits.
 5. **Keep the parts that worked.** Retain deterministic effort accounting, common random numbers, independent oracles, golden traces and frozen hashed builds. Measure O-01C's own serial budget curve before concluding that additional effort cannot help.
 6. **Explore cheaply, confirm independently.** Reuse the existing four-arm fishing ablation as background, screen new ideas on training states, then freeze the candidate and use new seeds. The release set that exposed STOP failures must not be presented as untouched validation for their fix.
@@ -449,12 +449,12 @@ The leaders' code is not available in this evidence set. Their approach cannot b
 
 ## 11. Lessons
 
-1. **Measure the jackpot structure early.** Concentrated scores suggest targeted planning experiments, while whole-game counterfactuals are needed to establish their benefit.
-2. **Diminishing returns guide the next experiment.** Flat curves motivate alternative evaluations, but do not prove that every search or compute improvement is exhausted.
-3. **Test how continuation policy values waiting.** Separate root-action and continuation effects; longer rollouts alone may increase cost without fixing a biased continuation.
+1. **Find the jackpot structure first.** When a score multiplies, a few events dominate. Measure that on the first day, then confirm any planning idea with whole-game comparisons.
+2. **Saturation is a signal.** When width, samples, pool size and time all stop helping, look at the value function before buying more search, while remembering that a flat curve was measured for one configuration.
+3. **Short greedy rollouts undervalue waiting.** Separate the root action from the continuation policy; a longer greedy rollout adds cost without fixing its bias.
 4. **Budget compute in deterministic units.** It turned a noisy, load-dependent solver into a reproducible one and made every comparison a paired comparison of decisions.
 5. **Know what each signal can see.** 600 local games could not predict a 100-case provisional reading after INT-01. Decide in advance which signal settles which question.
-6. **Write negative results down with their numbers.** Fifteen rejected changes form most of this report's evidence about where the ceiling is.
+6. **Write negative results down with their numbers.** Fifteen rejected changes form most of this report's evidence about where this architecture stopped improving.
 
 ---
 
@@ -467,13 +467,14 @@ The leaders' code is not available in this evidence set. Their approach cannot b
 - **Which probe was submitted last** is not recorded in the development log, so the final submission is identified only as one of the six O-01C time-limit probes (§8.5).
 - **The leaders' approach** is unknown; §9 proposes experiments on our solver rather than identifying their architecture.
 - **Adaptive use of release data.** The 5,000-game set exposed the STOP failure and informed O-01C. Its post-fix gain and interval describe that set, not a fully untouched confirmation.
+- **Refactor equivalence.** The 200-of-200 action match (§8.2) is the record made at the time; after the match only the golden traces and a three-game spot check were re-run.
 - **Mechanism selection.** The 40 fishing states were selected where the new policy wanted to discard, with uncapped continuation computation. Their gains cannot be extrapolated to all states or the online budget.
 
 ---
 
 ## 13. Conclusion
 
-I built and tested a C++ solver that improved from 26.6 to a best provisional reading of 37.0; the final online submission scored 40.57 (rank 41 of 79). The O-01C base configuration improves on greedy by 1.65× locally. Deterministic effort accounting and independent rule checks made the experiments auditable. Tested search refinements showed diminishing returns, while jackpot-focused fishing produced a modest gain. Persistent targets and soft multiplier protection are plausible next experiments, not established explanations of the leaders' advantage. The exact budget variant behind the final online score remains unidentified.
+I built a reproducible, carefully measured C++ solver for a one-player word game and improved it from 26.6 to a best provisional reading of 37.0 and a final score of 40.57 (rank 41 of 79). Locally the final build scores 1.65× the greedy baseline. The engineering held up: zero failed games in tens of thousands of local runs, deterministic effort accounting and independent oracles for every rule. The search refinements ran into diminishing returns, and the one change aimed at jackpots, fishing for target letters, gained only modestly, probably in part because it re-chooses its target from scratch each turn. My best guess is that the leaders planned those jackpots across turns; §9 gives the experiment that would test it. The exact budget variant behind the final score remains unidentified.
 
 ---
 

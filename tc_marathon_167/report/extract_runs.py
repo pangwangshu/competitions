@@ -35,7 +35,7 @@ LM = {'d': 2, 't': 3}
 
 
 def load(version):
-    """Rows keyed by seed (score, runtime, status, action hash) and DIAG streams."""
+    """Rows keyed by seed (score, runtime, action hash) and DIAG streams. Any failed run is an error."""
     rows, diags = {}, {}
     table = RUNS / (version + '.csv')
     if not table.exists():
@@ -48,6 +48,10 @@ def load(version):
         seed = int(r['seed'])
         if seed in rows:
             raise ValueError(f'{table}: duplicate seed {seed}')
+        if r['ok'] != '1' or not math.isfinite(float(r['score'])) or float(r['score']) < 0:
+            raise ValueError(f'{table}: seed {seed} failed; anatomy requires successful runs')
+        if not r['runtime_ms'] or int(r['runtime_ms']) < 0:
+            raise ValueError(f'{table}: seed {seed} has invalid runtime')
         diag_file = RUNS / version / ('%d.diag' % seed)
         if not diag_file.is_file():
             raise ValueError(f'{diag_file}: missing diagnostics; cannot compare actions')
@@ -58,12 +62,8 @@ def load(version):
         types = [d.get('type') for d in diag]
         if types.count('initial') != 1 or types.count('end') != 1 or 'turn' not in types:
             raise ValueError(f'{diag_file}: incomplete diagnostics (initial, turn and end required)')
-        if r['ok'] != '1' or not math.isfinite(float(r['score'])) or float(r['score']) < 0:
-            raise ValueError(f'{table}: seed {seed} failed; anatomy requires successful runs')
-        if not r['runtime_ms'] or int(r['runtime_ms']) < 0:
-            raise ValueError(f'{table}: seed {seed} has invalid runtime')
         actions = '\n'.join(d['action'] for d in diag if d.get('type') == 'turn')
-        rows[seed] = dict(score=r['score'], runtime_ms=r['runtime_ms'], status='ok' if r['ok'] == '1' else 'failed',
+        rows[seed] = dict(score=r['score'], runtime_ms=r['runtime_ms'],
                           action_sha256=hashlib.sha256(actions.encode()).hexdigest())
         diags[seed] = diag
     return rows, diags
@@ -173,7 +173,7 @@ def main():
             replay(data[v][1][seed])
     OUT.mkdir(parents=True, exist_ok=True)
     print('seeds complete for all versions:', len(seeds))
-    score = lambda v, s: max(0.0, float(data[v][0][s]['score'] or 0))
+    score = lambda v, s: max(0.0, float(data[v][0][s]['score']))
     # 1. lineage summary
     with open(OUT / 'lineage.csv', 'w', newline='') as f:
         w = csv.writer(f)
@@ -181,8 +181,8 @@ def main():
         prev = None
         for v in ORDER:
             sc = [score(v, s) for s in seeds]
-            rt = sorted(int(data[v][0][s]['runtime_ms'] or 0) for s in seeds)
-            failed = sum(data[v][0][s]['status'] != 'ok' for s in seeds)
+            rt = sorted(int(data[v][0][s]['runtime_ms']) for s in seeds)
+            failed = 0  # load() rejects failed runs; the column keeps the table format
             guard = sum(next((d.get('sched_guard_turns', 0) for d in data[v][1].get(s, []) if d.get('type') == 'end'), 0) for s in seeds)
             same = sum(data[v][0][s]['action_sha256'] == data['O-01C'][0][s]['action_sha256'] for s in seeds)
             b0 = [score('B0', s) for s in seeds]

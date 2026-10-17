@@ -52,6 +52,12 @@ class ExtractEvidenceTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'duplicate seed'):
             extract.load('B0')
 
+    def test_failed_run_reported_before_missing_diagnostics(self):
+        with (self.root / 'B0.csv').open('w', newline='') as f:
+            csv.writer(f).writerows([['seed', 'score', 'runtime_ms', 'ok'], [1, -1, 1, 0]])
+        with self.assertRaisesRegex(ValueError, 'seed 1 failed'):
+            extract.load('B0')
+
     def test_valid_trace_has_action_hash(self):
         self.table('B0')
         self.diag('B0')
