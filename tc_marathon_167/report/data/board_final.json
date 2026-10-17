@@ -1,0 +1,409 @@
+{
+ "seed": 30159,
+ "N": 14,
+ "T": 8,
+ "X": 4,
+ "D": 1,
+ "bonus": ".d..t....t.....d.S...D..D....d...tT..dd...t....dt..DDt.t.....t..t..D......t....DtDt..d.t....tt....T.t...t..dd....t...D.tTD...D....tDDd.D.t......t...t.DD.D..d.........D.t..dt....T.T.tDt.dt..DTD...d",
+ "score": 1658.0,
+ "board": [
+  "EKED...R.OLIOS",
+  "CEROS.NELSONS.",
+  "UP.EMEUS..ON.O",
+  ".T.RE..T.PI..K",
+  "..T.WHISKIES.A",
+  "..R..AM..N.ANY",
+  "COIF.SPECK.N..",
+  "O.FASTER.I.DUB",
+  "PAL.E.R.DEVS.E",
+  "PRESCRIBES.PAD",
+  "EM.UT.LAM.QUAD",
+  "R..Q.E.RAH.R.I",
+  "EPOS.MORSE.SYN",
+  "DID.VEDETTE.AG"
+ ],
+ "plays": [
+  {
+   "score": 2,
+   "tiles": 2,
+   "product": 1,
+   "phase": 0,
+   "turn": 0
+  },
+  {
+   "score": 24,
+   "tiles": 3,
+   "product": 3,
+   "phase": 0,
+   "turn": 1
+  },
+  {
+   "score": 8,
+   "tiles": 2,
+   "product": 1,
+   "phase": 0,
+   "turn": 2
+  },
+  {
+   "score": 72,
+   "tiles": 7,
+   "product": 2,
+   "phase": 0,
+   "turn": 3
+  },
+  {
+   "score": 24,
+   "tiles": 4,
+   "product": 4,
+   "phase": 0,
+   "turn": 4
+  },
+  {
+   "score": 392,
+   "tiles": 6,
+   "product": 16,
+   "phase": 0,
+   "turn": 5
+  },
+  {
+   "score": 24,
+   "tiles": 3,
+   "product": 3,
+   "phase": 0,
+   "turn": 6
+  },
+  {
+   "score": 216,
+   "tiles": 7,
+   "product": 12,
+   "phase": 0,
+   "turn": 7
+  },
+  {
+   "score": 47,
+   "tiles": 5,
+   "product": 3,
+   "phase": 0,
+   "turn": 8
+  },
+  {
+   "score": 76,
+   "tiles": 6,
+   "product": 4,
+   "phase": 0,
+   "turn": 9
+  },
+  {
+   "score": 14,
+   "tiles": 3,
+   "product": 1,
+   "phase": 1,
+   "turn": 10
+  },
+  {
+   "score": 56,
+   "tiles": 3,
+   "product": 4,
+   "phase": 1,
+   "turn": 11
+  },
+  {
+   "score": 18,
+   "tiles": 3,
+   "product": 1,
+   "phase": 1,
+   "turn": 12
+  },
+  {
+   "score": 100,
+   "tiles": 8,
+   "product": 4,
+   "phase": 1,
+   "turn": 13
+  },
+  {
+   "score": 20,
+   "tiles": 3,
+   "product": 1,
+   "phase": 1,
+   "turn": 14
+  },
+  {
+   "score": 102,
+   "tiles": 7,
+   "product": 6,
+   "phase": 1,
+   "turn": 15
+  },
+  {
+   "score": 27,
+   "tiles": 5,
+   "product": 1,
+   "phase": 1,
+   "turn": 16
+  },
+  {
+   "score": 36,
+   "tiles": 3,
+   "product": 1,
+   "phase": 1,
+   "turn": 17
+  },
+  {
+   "score": 32,
+   "tiles": 6,
+   "product": 2,
+   "phase": 1,
+   "turn": 18
+  },
+  {
+   "score": 15,
+   "tiles": 3,
+   "product": 1,
+   "phase": 1,
+   "turn": 19
+  },
+  {
+   "score": 16,
+   "tiles": 6,
+   "product": 2,
+   "phase": 1,
+   "turn": 20
+  },
+  {
+   "score": 17,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 21
+  },
+  {
+   "score": 12,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 22
+  },
+  {
+   "score": 12,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 23
+  },
+  {
+   "score": 44,
+   "tiles": 2,
+   "product": 3,
+   "phase": 2,
+   "turn": 24
+  },
+  {
+   "score": 18,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 25
+  },
+  {
+   "score": 17,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 26
+  },
+  {
+   "score": 14,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 27
+  },
+  {
+   "score": 14,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 28
+  },
+  {
+   "score": 8,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 29
+  },
+  {
+   "score": 21,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 30
+  },
+  {
+   "score": 21,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 31
+  },
+  {
+   "score": 15,
+   "tiles": 3,
+   "product": 1,
+   "phase": 2,
+   "turn": 32
+  },
+  {
+   "score": 16,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 33
+  },
+  {
+   "score": 5,
+   "tiles": 1,
+   "product": 1,
+   "phase": 2,
+   "turn": 34
+  },
+  {
+   "score": 7,
+   "tiles": 1,
+   "product": 1,
+   "phase": 2,
+   "turn": 35
+  },
+  {
+   "score": 6,
+   "tiles": 1,
+   "product": 1,
+   "phase": 2,
+   "turn": 36
+  },
+  {
+   "score": 16,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 37
+  },
+  {
+   "score": 12,
+   "tiles": 2,
+   "product": 1,
+   "phase": 2,
+   "turn": 38
+  },
+  {
+   "score": 6,
+   "tiles": 1,
+   "product": 1,
+   "phase": 2,
+   "turn": 39
+  },
+  {
+   "score": 6,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 41
+  },
+  {
+   "score": 12,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 42
+  },
+  {
+   "score": 5,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 43
+  },
+  {
+   "score": 5,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 44
+  },
+  {
+   "score": 8,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 46
+  },
+  {
+   "score": 8,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 47
+  },
+  {
+   "score": 15,
+   "tiles": 1,
+   "product": 1,
+   "phase": 3,
+   "turn": 49
+  }
+ ],
+ "actions": [
+  "PLACE 1 3 V OE",
+  "PLACE 2 3 H EMEU",
+  "PLACE 2 4 V MEW",
+  "PLACE 4 4 H WHISKIES",
+  "PLACE 0 10 V LOOIE",
+  "PLACE 3 9 V PINKIES",
+  "PLACE 8 8 H DEVS",
+  "PLACE 4 11 V SANDSPURS",
+  "PLACE 8 8 V DEMAST",
+  "PLACE 13 4 H VEDETTE",
+  "PLACE 1 1 H EROS",
+  "PLACE 10 10 H QUAD",
+  "PLACE 6 6 H PECK",
+  "PLACE 9 0 H PRESCRIBES",
+  "PLACE 4 5 V HAST",
+  "PLACE 6 0 V COPPERED",
+  "PLACE 7 2 H FASTER",
+  "PLACE 6 0 H COIF",
+  "PLACE 7 13 V BEDDING",
+  "PLACE 12 5 H MORS",
+  "PLACE 1 6 H NELSONS",
+  "PLACE 8 1 V ARM",
+  "PLACE 0 7 V RESTS",
+  "PLACE 9 3 V SUQ",
+  "PLACE 11 9 V HET",
+  "PLACE 0 1 V KEPT",
+  "PLACE 9 7 V BARRE",
+  "PLACE 0 9 H OLIO",
+  "PLACE 4 2 V TRIFLE",
+  "PLACE 5 11 H ANY",
+  "PLACE 2 13 V OKAY",
+  "PLACE 12 0 H EPOS",
+  "PLACE 0 0 H EKED",
+  "PLACE 0 0 V ECU",
+  "PLACE 0 9 H OLIOS",
+  "PLACE 3 3 H RE",
+  "PLACE 12 11 H SYN",
+  "PLACE 13 0 H DID",
+  "PLACE 7 4 V SECT",
+  "PLACE 7 11 H DUB",
+  "DISCARD GOOFCCOG",
+  "PLACE 6 6 V PERI",
+  "PLACE 10 6 H LAM",
+  "PLACE 2 10 H ON",
+  "PLACE 11 5 V EME",
+  "DISCARD DSTYRNLG",
+  "PLACE 9 11 H PAD",
+  "PLACE 13 12 H AG",
+  "DISCARD SIOGNSNE",
+  "PLACE 5 5 H AM",
+  "STOP"
+ ]
+}

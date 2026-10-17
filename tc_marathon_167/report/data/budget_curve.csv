@@ -1,0 +1,13 @@
+build,budget_ms,G,reference,source
+P2-03,200,1.0126,P1-02,P2-03 training seed 167
+P2-03,400,1.0712,P1-02,P2-03 training seed 167
+P2-03,600,1.0947,P1-02,P2-03 training seed 167
+P2-03,800,1.0957,P1-02,P2-03 training seed 167
+P2-03,1000,1.0984,P1-02,P2-03 training seed 167
+P2-03,1500,1.1053,P1-02,P2-03 training seed 167
+P2-03,3000,1.1050,P1-02,P2-03 training seed 167
+P2-03,5000,1.1050,P1-02,P2-03 training seed 167
+P2-03,7500,1.1050,P1-02,P2-03 training seed 167
+INT-01,3000,1.0000,INT-01,INT-01 training 101..300
+INT-01,4500,0.9954,INT-01,INT-01 training 101..300
+INT-01,6000,0.9974,INT-01,INT-01 training 101..300

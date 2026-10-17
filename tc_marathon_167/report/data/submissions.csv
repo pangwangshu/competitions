@@ -1,0 +1,8 @@
+submitted,build,provisional,provisional_rank,source,note
+2026-10-11 01:23,B0,26.63,52,leaderboard snapshot 2026-10-11 01:32,trie greedy baseline; the submission page later showed 26.34
+2026-10-11 21:40,P1-01,31.13,,submission page,two-ply lookahead with sampled refills
+2026-10-12 07:42,P2-03,35.43,38,leaderboard snapshot 2026-10-12 09:24,P1-02 lane prefilter and board potential + effort scheduler
+2026-10-12 16:01,INT-01,37.04,,leaderboard snapshot 2026-10-12 22:09,P2-01 rollouts + P1-03 STOP/discard decision; recomputed later as 36.97
+2026-10-13 morning,O-01A,36.07,,development log,fishing continuations; local validation +2.9% vs INT-01
+2026-10-13 afternoon,O-01C,36.07,,development log,O-01A + estimator fixes + dominated-STOP guard; local 5000 games +2.9% vs INT-01
+2026-10-13 20:23,O-01C time-limit probe (final),36.47,42,final leaderboard,final score 40.57 rank 41 on 5000 cases

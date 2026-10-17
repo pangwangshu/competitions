@@ -1,0 +1,5 @@
+build/
+dist/
+runs/
+tools/tester.jar
+tools/enable2k.txt

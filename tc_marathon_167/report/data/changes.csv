@@ -1,0 +1,24 @@
+id,change,status,G,ci_lo,ci_hi,n,reference,note
+P1-01,Two-ply lookahead: Q = score + E[best next score] over 4 sampled refills,shipped,1.2431,1.2139,1.2731,200x3,B0,width K=32 dominated; visible preview alone gave only 1.016
+P1-02,Lane prefilter (rack x multiplier lanes) + DP board potential,shipped,1.1396,1.1154,1.1666,200x3,P1-01,gain came almost entirely from plays with word-multiplier product >= 27
+P2-03,Deterministic effort scheduler + successive halving + pool 512,shipped,1.0881,1.0656,1.1116,200x3,P1-02,removed wall-clock truncation; extra effort moved to the candidate pool
+P2-01,Shared-tape rollouts (width 4 x depth 4 x 32 tapes) mixed 50/50 with two-ply Q,merged into INT-01,1.0383,1.0216,1.0568,200x3,P2-03 same budget,failed its 95% completion gate on N=20 alone (91.2%)
+P1-03,Unified PLACE / DISCARD-subset / STOP decision on common tapes,merged into INT-01,1.0088,1.0074,1.0103,200x3,P2-03,almost all from STOP; selective keeps gave nothing measurable
+INT-01,P2-01 + P1-03 + pacing fix (front 3 and first-round guarantee),shipped,1.0322,1.0166,1.0487,200x3,P2-03 same budget,1.037 vs the 800 ms P2-03 default
+O-01A,Fishing continuation policy + root fishing trigger + paced decision pool,shipped,1.0293,1.0154,1.0436,200x3,INT-01,read 36.07 online vs 36.97 for INT-01; not explained
+O-01C,O-01A + estimator fixes + exact refill odds + dominated-STOP guard,shipped,1.0289,1.024,1.033,5000,INT-01,the dominated-STOP guard fixed a 4.5% loss on X=0 games
+R-wide,Wider two-ply evaluation (K=64 / 128) instead of a prefilter,rejected,1.0627,,,200,P1-01,superseded by the prefilter which reaches the same candidates cheaply
+R-samples,More refill samples (S 4 -> 16),rejected,0.9992,,,200,P1-01,sampling noise was not the bottleneck
+R-rack,Static rack value (letter value / duplicates / vowel balance),rejected,1.0007,0.989,1.013,200,P1-01,no measurable gain
+R-laneQ,Lane expectation added directly to Q,rejected,0.9753,,,200,P1-02 dev,double counts what the sampled E[next] already contains
+R-alpha,Board potential weight alpha = 15,rejected,0.9523,,,200,P1-02 dev,hoards multipliers instead of cashing them
+R-tree,Bounded expectimax tree (width 4 depth 3 chance 2),rejected,0.9923,,,40,P2-03,50.7% completion within budget
+R-depth8,Rollout depth 8 instead of 4,rejected,0.9708,,,40,P2-03,greedy continuation bias grows with depth
+R-strong,Two-ply continuation policy inside rollouts,rejected,0.9866,,,40,P2-03,fewer tapes per budget
+R-rate,Deck-rate valuation of discards,rejected,0.974,0.929,1.007,200,P2-03,
+R-budget,More effort for INT-01 (4500 / 6000 ms),rejected,0.9954,,,200,INT-01,the evaluation had saturated
+R-pool,Candidate pool 1024,rejected,1.0034,0.995,1.012,200,INT-01,
+R-hyper,Best of 10 rollout hyper-parameter variants (depth 6),rejected,1.0055,0.990,1.021,200,INT-01,
+R-guard,Proportional time-guard sharing (guard-share),rejected,0.995,,,100,O-01A,noise
+R-hybrid,Revert to INT-01 mechanics when the guard binds,rejected,0.975,,,100,O-01B,-2.5% on efficiency cores
+R-maxrate,Skip fishing when greedy already earns 10 points per tile,rejected,0.9972,0.979,1.015,200,O-01A dev,
