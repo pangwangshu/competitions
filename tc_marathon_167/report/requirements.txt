@@ -1,0 +1,3 @@
+# Versions used for the October 2026 figure regeneration.
+matplotlib==3.11.1
+numpy==2.5.2

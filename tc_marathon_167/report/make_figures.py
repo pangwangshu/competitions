@@ -580,7 +580,7 @@ def fig_redesign():
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     ax.axis("off")
-    ax.text(0.02, 0.97, "A plan-centric redesign: targets as first-class objects", fontsize=13,
+    ax.text(0.02, 0.97, "A planning hypothesis: persistent targets and soft cell protection", fontsize=13,
             fontweight="bold", color=INK, va="top")
     ax.text(0.02, 0.93, "The unit of decision becomes a jackpot target (lane + word family), not a single move. "
             "Moves are judged by what they do to the target portfolio and to the board's remaining multipliers.",
@@ -588,22 +588,22 @@ def fig_redesign():
     w, h = 0.21, 0.25
     top = [(0.02, "Target enumerator", "Every line segment through ≥ 2 word\nmultipliers that can be anchored; word\nfamilies that fit, with exact score\n(letter mults + cross words)."),
            (0.27, "Completion model", "P(rack + refills complete word within\nk turns | keep plan), exact draw DP over\nletter frequencies + visible preview;\ncost in tiles and discard penalties."),
-           (0.52, "Portfolio planner", "Choose ≤ 2 active targets maximising\nexpected points per tile of the deck left;\nreserve their cells (no burning);\nplan the setup moves that anchor them."),
-           (0.77, "Move selector", "Setup / fish (keep + discard) / cash-in /\nfiller. Filler moves must not burn\nreserved multipliers and should create\nanchors. Rollouts only to break ties.")]
+           (0.52, "Portfolio planner", "Test up to 2 persistent targets;\nestimate net completion value;\nsoftly price consuming their cells;\nallow replacement and abandonment."),
+           (0.77, "Move selector", "Compare setup / fish / cash / filler\non common sampled futures.\nCount waiting cost and new anchors;\nallow useful consumption of cells.")]
     for i, (x, t, b) in enumerate(top):
         box(ax, x, 0.55, w, h, t, b, edge=S1)
         if i:
             arrow(ax, (top[i - 1][0] + w + 0.003, 0.55 + h / 2), (x - 0.004, 0.55 + h / 2), color=INK2)
-    bottom = [(0.02, "Fast in-process simulator", "Game + tile sampler in C++, millions of\nself-play games: the training and\nevaluation loop from day one."),
-              (0.27, "Learned values", "Leave values per rack multiset, shadow\nprices per multiplier cell, target\nhit-rate tables; fitted by self-play."),
-              (0.52, "Full-time budget", "Spend ~9 s: Monte Carlo over sampled\ndecks for plan choice (when to cash,\nwhich target to abandon)."),
-              (0.77, "Ceiling experiments", "Perfect-information oracle on local\nseeds bounds what planning can gain\nbefore building it.")]
+    bottom = [(0.02, "Fast in-process simulator", "Reuse transition and frozen-state\ncontinuation tools. Profile throughput\nbefore scaling self-play experiments."),
+              (0.27, "Optional learned values", "Test leave and cell-price estimates\nagainst simple controls. Learning is\na candidate approach, not a requirement."),
+              (0.52, "Budget experiment", "Measure O-01C's serial effort curve\nand guard activity. More time for a\nnew evaluator remains untested."),
+              (0.77, "Privileged-information probe", "Known-deck heuristics are diagnostics,\nnot bounds. A certified ceiling needs\nan exact solver or valid relaxation.")]
     for x, t, b in bottom:
         box(ax, x, 0.17, w, 0.24, t, b, edge=S2)
     for x, _, _ in bottom:
         arrow(ax, (x + w / 2, 0.41), (x + w / 2, 0.548), color=S2, ls="--")
-    ax.text(0.02, 0.10, "Blue: per-turn decision path.  Orange: infrastructure that feeds it. Inferred from our "
-            "measurements and the score's structure, not from other competitors' code.", fontsize=8.5, color=INK2)
+    ax.text(0.02, 0.10, "Blue: proposed decisions.  Orange: supporting experiments. Hypotheses motivated by our "
+            "measurements, not identified features of other competitors' code.", fontsize=8.5, color=INK2)
     save(fig, "fig11_redesign.png")
 
 

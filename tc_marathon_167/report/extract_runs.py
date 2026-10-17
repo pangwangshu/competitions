@@ -13,6 +13,7 @@ produced by the same extraction applied to runs made with the development
 repository's harness (same tester, flags and seeds; Appendix B). The serial
 re-runs behind serial_probes.csv are tabulated separately.
 """
+import argparse
 import csv
 import glob
 import json
@@ -24,9 +25,8 @@ from pathlib import Path
 
 import hashlib
 
-RUNS = Path(sys.argv[1])
-OUT = Path(sys.argv[2])
-OUT.mkdir(parents=True, exist_ok=True)
+RUNS = None
+OUT = None
 ORDER = ['B0', 'P1-01', 'P1-02', 'P2-03', 'INT-01', 'O-01A', 'O-01C',
          'O-01C-B5000', 'O-01C-B3000', 'O-01C-W2000', 'O-01C-W1500', 'O-01C-W1000', 'O-01C-W700',
          'refactor-O-01C']
@@ -40,10 +40,28 @@ def load(version):
     table = RUNS / (version + '.csv')
     if not table.exists():
         return rows, diags
-    for r in csv.DictReader(open(table)):
+    with table.open(newline="") as f:
+        records = list(csv.DictReader(f))
+    if not records:
+        raise ValueError(f"{table}: empty run table")
+    for r in records:
         seed = int(r['seed'])
+        if seed in rows:
+            raise ValueError(f'{table}: duplicate seed {seed}')
         diag_file = RUNS / version / ('%d.diag' % seed)
-        diag = [json.loads(line[5:]) for line in open(diag_file)] if diag_file.exists() else []
+        if not diag_file.is_file():
+            raise ValueError(f'{diag_file}: missing diagnostics; cannot compare actions')
+        lines = diag_file.read_text().splitlines()
+        if any(not line.startswith('DIAG ') for line in lines):
+            raise ValueError(f'{diag_file}: expected DIAG-prefixed JSON lines')
+        diag = [json.loads(line[5:]) for line in lines]
+        types = [d.get('type') for d in diag]
+        if types.count('initial') != 1 or types.count('end') != 1 or 'turn' not in types:
+            raise ValueError(f'{diag_file}: incomplete diagnostics (initial, turn and end required)')
+        if r['ok'] != '1' or not math.isfinite(float(r['score'])) or float(r['score']) < 0:
+            raise ValueError(f'{table}: seed {seed} failed; anatomy requires successful runs')
+        if not r['runtime_ms'] or int(r['runtime_ms']) < 0:
+            raise ValueError(f'{table}: seed {seed} has invalid runtime')
         actions = '\n'.join(d['action'] for d in diag if d.get('type') == 'turn')
         rows[seed] = dict(score=r['score'], runtime_ms=r['runtime_ms'], status='ok' if r['ok'] == '1' else 'failed',
                           action_sha256=hashlib.sha256(actions.encode()).hexdigest())
@@ -132,10 +150,28 @@ def geo(c, r):
 
 
 def main():
-    global ORDER
+    global ORDER, RUNS, OUT
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('runs', type=Path)
+    parser.add_argument('out', type=Path)
+    args = parser.parse_args()
+    RUNS, OUT = args.runs, args.out
+    for required in ('B0', 'O-01C'):
+        if not (RUNS / (required + '.csv')).is_file():
+            raise ValueError(f'{RUNS}: required {required}.csv missing (names must match exactly)')
     data = {v: load(v) for v in ORDER}
     ORDER = [v for v in ORDER if data[v][0]]
-    seeds = sorted(set.intersection(*(set(data[v][0]) for v in ORDER)))
+    if any(not data[v][0] for v in ('B0', 'O-01C')):
+        raise ValueError('B0 and O-01C must contain a nonempty seed set')
+    seeds = sorted(data['O-01C'][0])
+    for v in ORDER:
+        if set(data[v][0]) != set(seeds):
+            raise ValueError(f'{v}: seed set differs from O-01C; refusing to drop cases')
+    # Validate replayable anatomy before creating or overwriting output tables.
+    for v in ('B0', 'O-01C'):
+        for seed in seeds:
+            replay(data[v][1][seed])
+    OUT.mkdir(parents=True, exist_ok=True)
     print('seeds complete for all versions:', len(seeds))
     score = lambda v, s: max(0.0, float(data[v][0][s]['score'] or 0))
     # 1. lineage summary
@@ -225,6 +261,9 @@ def main():
                         w.writerow([s, g['n'], round(prog, 4), round(wk, 3), round(cap, 3)])
             # one board for figure 1: the median-scoring game with N between 13 and 15
             cand = sorted((s for s, g in games.items() if 13 <= g['n'] <= 15), key=lambda s: score(v, s))
+            if not cand:
+                cand = sorted(games, key=lambda s: score(v, s))
+                print('no N=13..15 game; board figure uses the median-scoring available game')
             pick = cand[len(cand) // 2]
             g = games[pick]
             json.dump(dict(seed=pick, N=g['n'], T=g['t'], X=g['x'], D=g['d'], bonus=g['bonus'], score=score(v, pick),
@@ -235,4 +274,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except (ValueError, KeyError, StopIteration, OSError) as exc:
+        sys.exit(f'extract_runs: {exc}')
