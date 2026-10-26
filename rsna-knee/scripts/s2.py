@@ -179,16 +179,16 @@ def report(pulled, exp, gpu_hours, kernel_version):
                     "kernel_total_seconds": run["total_seconds"]}
     evaluation.write_json(exp / "verification.json", verification)
     passed = all(g["passed"] is not False for g in gates.values())
-    fold_text = "折一致" if gates["fold_consistency"]["passed"] else "折不一致，M_oof 改用 S4 自训折"
+    fold_text = "folds consistent" if gates["fold_consistency"]["passed"] else "folds inconsistent, M_oof switches to S4 self-trained folds"
     if verification["labels_sha256"] != verification["run_labels_sha256"]:
-        fold_text = "S1 v2 折与作者不一致，改用稳定排序折（标签 kernel v3）后" + fold_text
-    conclusion = (f"{'通过' if passed else '未全部通过'}：test 与 Kaggle v1 最大差 {max(test_cache, test_dicom):.2e}；"
-                  f"{fold_text}（留出 AUC " + "/".join(f"{held[k]['held_out_auc']:.3f}" for k in sorted(held))
-                  + "，与训练折差 " + "/".join(f"{held[k]['gap']:.3f}" for k in sorted(held))
-                  + f"；作者公布的逐项 OOF 最大差 {published['oof_max_abs_diff']:.4f}）；"
-                  f"DICOM 路径 {dicom['seconds_per_study_parallel']:.2f}s/study，隐藏集估计 {hidden['estimate_hours']:.2f}h")
+        fold_text = "S1 v2 folds differed from the author's; after switching to stable-sort folds (label kernel v3), " + fold_text
+    conclusion = (f"{'passed' if passed else 'not all gates passed'}: max diff of test vs Kaggle v1 {max(test_cache, test_dicom):.2e}; "
+                  f"{fold_text} (held-out AUC " + "/".join(f"{held[k]['held_out_auc']:.3f}" for k in sorted(held))
+                  + ", gap to training folds " + "/".join(f"{held[k]['gap']:.3f}" for k in sorted(held))
+                  + f"; max per-label diff from the author's published OOF {published['oof_max_abs_diff']:.4f}); "
+                  f"DICOM path {dicom['seconds_per_study_parallel']:.2f}s/study, hidden-set estimate {hidden['estimate_hours']:.2f}h")
     record = {"id": exp.name, "date": date.today().isoformat(),
-              "config_diff": "作者 fold 0–2 检查点、作者推理配置（k_eval 12、res 256、fp16、概率平均）；读 S1 缓存",
+              "config_diff": "author's fold 0–2 checkpoints, author's inference config (k_eval 12, res 256, fp16, probability mean); reads the S1 cache",
               "kernel": "wangshu/rsna-knee-eval", "kernel_version": kernel_version,
               "m_oof": {"auc": m_oof["auc"], "ci": m_oof["ci"]}, "m_gold": {"auc": m_gold["auc"], "ci": m_gold["ci"]},
               "public_score": None, "gpu_hours": gpu_hours, "conclusion": conclusion}

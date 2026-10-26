@@ -44,5 +44,5 @@ report = {"checks": checks, "fold_counts": {str(k): int(v) for k, v in labels.fo
               (str(study), str(group)) for study, group in groups.items()), ensure_ascii=False).encode()).hexdigest()}
 write_json(Path(WORK) / "labels_report.json", report)
 print(json.dumps(report, indent=2))
-# The plan allows an AUC mismatch, with the difference recorded for S2.
+# The acceptance gate allows an AUC mismatch, with the difference recorded for S2.
 assert all(v for k, v in checks.items() if k != "consensus_auc_in_range"), checks

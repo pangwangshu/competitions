@@ -131,7 +131,7 @@ def publish_code(api, message, timeout=900):
     if existing is not None:
         existing_info = dataset_info(api)
         if not existing_info.is_private:
-            raise ValueError("The code dataset is public; refusing to update it under the private-only plan")
+            raise ValueError("The code dataset is public; refusing to update it under the private-only policy")
         remote = remote_code_manifest(api)
         if remote["archive_sha256"] == manifest["archive_sha256"]:
             manifest = remote

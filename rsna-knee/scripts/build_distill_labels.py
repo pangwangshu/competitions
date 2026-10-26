@@ -65,13 +65,15 @@ def build(lab, teacher):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--labels", type=Path, default=V0, help="original v0 labels and fixed fold table")
     ap.add_argument("--teacher", type=Path, required=True, help="csv indexed by StudyInstanceUID with the 12 label columns")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--teacher-name", required=True)
     args = ap.parse_args()
-    lab = pd.read_csv(V0, index_col=0)
+    lab = pd.read_csv(args.labels, index_col=0)
     teacher = pd.read_csv(args.teacher, index_col=0)
     out, params, cal, missing = build(lab, teacher)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(args.out)
     g = lab.index[lab.is_gold == 1]
     yg = targets(lab, g, "gold")

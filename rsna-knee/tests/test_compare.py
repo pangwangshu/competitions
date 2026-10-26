@@ -11,7 +11,7 @@ def result(low, high, mean=None, delta=None):
     return {"ci_low": low, "ci_high": high, "delta_mean": mean, "delta_observed": mean if delta is None else delta}
 
 
-def test_decision_rule_matches_plan():
+def test_decision_rule_matches_report():
     assert decide(result(0.001, 0.01), result(-0.05, 0.03, delta=-0.009)) == "adopt"
     assert decide(result(0.001, 0.01), result(-0.05, 0.03, delta=-0.011)) == "reject"
     assert decide(result(-0.001, 0.01), result(-0.05, 0.03)) == "pending"

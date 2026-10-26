@@ -1,4 +1,4 @@
-"""S6: train the final ensemble C* (confirmed at H2 on 2026-10-10).
+"""S6: train the final ensemble C* (confirmed on 2026-10-10).
 
   python scripts/s6.py configs          # experiments/S6/session-{1,2}-config.json
   python scripts/s6.py probe-configs    # experiments/S6-probe-*/config.json (reader-only and blend submissions)
@@ -65,7 +65,7 @@ def probe_config(name):
 
 
 # kaggle/submit-blend: public CoAtNet + one of our reader probes, rank(w * CoAtNet + (1 - w) * ours).
-# The weight is fixed by the S6 plan before any blend is scored, never tuned on the public LB.
+# The weight is fixed before any blend is scored, never tuned on the public LB.
 BLENDS = {"S6-probe-blend-coat07-tiny3-small3": ("S6-probe-tiny3-small3", 0.7)}
 
 
@@ -86,7 +86,7 @@ FINAL_BLEND = "S6-final-blend-coat07"
 
 
 def final_configs():
-    """F6 eval (one run per backbone: a fold may belong to one checkpoint per run), F9 own C* x10, F11 blend."""
+    """Final I*2 eval (one run per backbone: a fold may belong to one checkpoint per run), own C* x10 submission, blend."""
     from scripts.s3 import CANDIDATES
 
     manifest = json.loads(CKPT_MANIFEST.read_text())
@@ -119,7 +119,7 @@ def member_dir(kind, fold):
 def record_session(pulled):
     """Copy a pulled training session into experiments/S6-<kind>-f<k>/ and pool the in-training OOF over all folds.
 
-    Training-time predictions (EMA, single view), not I*2; F6 re-scores the checkpoints with I*2.
+    Training-time predictions (EMA, single view), not I*2; the final eval re-scores the checkpoints with I*2.
     """
     import shutil
 
@@ -171,7 +171,7 @@ def record_session(pulled):
         per_fold[f].update({f"{k}_gold": macro_auc(y_gold, preds[k, f]["gold"].loc[golds["tiny"].index].to_numpy())
                             for k in ("tiny", "small")})
     analysis = {
-        "note": "in-training EMA predictions (single view), probability mean; I*2 re-score in F6",
+        "note": "in-training EMA predictions (single view), probability mean; I*2 re-score in the final eval",
         "folds": folds, "per_fold": per_fold,
         "pooled_oof": {k: boot(y_weak, p) for k, p in oof.items()},
         "pooled_oof_deltas": {f"tiny+small vs {k}": paired_bootstrap(y_weak, oof[k].to_numpy(),

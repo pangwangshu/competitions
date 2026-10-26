@@ -1,8 +1,8 @@
-"""Compare two evaluation runs with the plan's paired-bootstrap decision rule.
+"""Compare two evaluation runs with the paired-bootstrap decision rule.
 
 Usage: python scripts/compare.py <eval_dir_A> <eval_dir_B> [--labels-changed] [--out result.json]
 A is the control, B the variant; Δ = AUC(B) - AUC(A). Each dir holds preds_oof.csv
-and/or preds_gold.csv from rsna_knee.evaluation. Rule (plan/README.md):
+and/or preds_gold.csv from rsna_knee.evaluation. Rule (report/writeup.md, §5.3):
   adopt    Δ_oof 95% CI lower bound > 0 and Δ_gold >= -0.01
   pending  Δ_oof bootstrap mean > 0 but the CI crosses 0
   reject   everything else

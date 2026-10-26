@@ -60,7 +60,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--limit", type=int, default=0, help="debug: use only this many training studies")
     ap.add_argument("--eval_every", type=int, default=1,
-                    help="evaluate the EMA model every N epochs (0: only after the last); training is unaffected")
+                    help="evaluate the EMA model every N epochs (0: only after the last); changes evaluation-loader RNG consumption")
     ap.add_argument("--grad_ckpt", type=int, default=0,
                     help="1: recompute encoder activations in backward (same maths, fits bs 8 on 16GB GPUs)")
     ap.add_argument("--mirror_p", type=float, default=0.0, help="probability of a left-right mirrored study")
@@ -125,7 +125,8 @@ def main():
     sched = torch.optim.lr_scheduler.LambdaLR(
         opt, lambda s: min(1.0, (s + 1) / warm) * (0.5 * (1 + math.cos(math.pi * min(1.0, s / steps)))))
 
-    # a state file is written after every epoch so an interrupted run continues where it stopped
+    # Resume restores model/optimizer progress, not RNG or persistent worker states.
+    # A resumed run is therefore not bitwise equivalent to an uninterrupted run.
     state_path = f"{out_dir}/state_fold{args.fold}.pt"
     step, start_ep, preds = 0, 0, None
     if os.path.exists(state_path):

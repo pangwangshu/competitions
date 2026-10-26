@@ -38,8 +38,8 @@ T1_CKPTS = ["S5-T1_fold0.pt", "S5-T1-seed1_fold0.pt"]
 
 
 def write_t4s6_followups():
-    """F8: I*2 eval of both students and of the S5-T1-seed1 control (S5-T1 has S5-T1-istar2).
-    F10: two reader-only public probes, E = S5-T1 x2 seeds (v0 labels), F = T4-S6 students x2."""
+    """I*2 eval of both distilled students and of the S5-T1-seed1 control (S5-T1 has S5-T1-istar2).
+    Plus two reader-only public probes: E = S5-T1 x2 seeds (v0 labels), F = T4-S6 students x2."""
     runs = [eval_run(f"{f.removesuffix('_fold0.pt')}-istar2", f) for f in T4S6_CKPTS + T1_CKPTS[1:]]
     evaluation.write_json(EXP / "S5" / "eval-t4s6-config.json", {"runs": runs})
     manifest = json.loads(CKPT_MANIFEST.read_text())
@@ -84,13 +84,17 @@ def write_configs():
     ]}
     evaluation.write_json(EXP / "S5" / "session-C-config.json", session_c)
     # T4: the T1 recipe (mirror, 14 epochs) on distillation labels; control = S5-T1 / S5-T1-seed1 on v0.
-    t4 = json.loads((EXP / "S5-T4" / "labels_t4.json").read_text())
-    session_t4 = {"name": "S5-session-T4", **pins, "max_hours": 11.5,
-                  "extra_labels": {"labels_t4": {"file": "labels_t4.csv", "sha256": t4["labels_t4_sha256"]}},
-                  "queues": [[job("S5-T4", 0, mirror_p=0.5, labels="labels_t4")],
-                             [job("S5-T4-seed1", 1, mirror_p=0.5, labels="labels_t4", seed=1)]]}
-    evaluation.write_json(EXP / "S5" / "session-T4-config.json", session_t4)
-    # T4-S6 (final-week plan F7): same students, teacher = nartaa's S6 ConvNeXt (no OAI); written once F5 made the labels.
+    session_t4 = {"queues": []}
+    if (EXP / "S5-T4" / "labels_t4.json").exists():
+        t4 = json.loads((EXP / "S5-T4" / "labels_t4.json").read_text())
+        # Accept the original hand-written record as well as the current builder schema.
+        t4_sha = t4["labels_sha256"] if "labels_sha256" in t4 else t4["labels_t4_sha256"]
+        session_t4 = {"name": "S5-session-T4", **pins, "max_hours": 11.5,
+                      "extra_labels": {"labels_t4": {"file": "labels_t4.csv", "sha256": t4_sha}},
+                      "queues": [[job("S5-T4", 0, mirror_p=0.5, labels="labels_t4")],
+                                 [job("S5-T4-seed1", 1, mirror_p=0.5, labels="labels_t4", seed=1)]]}
+        evaluation.write_json(EXP / "S5" / "session-T4-config.json", session_t4)
+    # T4-S6: same students, teacher = nartaa's S6 ConvNeXt (no OAI); written once the distillation labels exist.
     t4s_json = EXP / "S5-T4S6" / "labels_t4s.json"
     if t4s_json.exists():
         t4s = json.loads(t4s_json.read_text())

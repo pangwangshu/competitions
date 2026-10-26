@@ -5,7 +5,7 @@
 Source notebook: nartaa/rsna-knee-0949-anatomical-mirror (public; its script is embedded verbatim,
 only its output path is patched). The kernel runs the CoAtNet in a subprocess, then our checkpoints
 from the config (as kaggle/submit-own does), and writes rank(w * rank(CoAtNet) + (1 - w) * rank(ours))
-per finding. The weight is fixed in the config before submission (S6 plan: w = 0.7), never tuned on
+per finding. The weight is fixed in the config before submission (w = 0.7, fixed in advance), never tuned on
 the public LB. On the hidden set a failed side falls back to the other; on the 3-study commit run
 any failure raises, so a fallback cannot pass as a blend.
 """

@@ -1,40 +1,35 @@
-"""Download the four specified public label CSVs, pinned to observed versions."""
+"""Download label sources at the versions and SHA-256 hashes recorded in S1."""
 import hashlib
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from scripts.kx import ROOT, get_api, write_json
-from kagglesdk.datasets.types.dataset_api_service import ApiGetDatasetRequest
+from scripts.kx import ROOT
 
-SOURCES = [
-    ("stevenleehans", "rsna-knee-llm-report-labels", "llm_labels_v4_blend.csv"),
-    ("pilkwang", "rsna-knee-llm-labels", "report_labels_v2.csv"),
-    ("lixin73", "rsna-knee-llm-report-labels-sol56", "labels_llm_gpt56sol.csv"),
-    ("laymond", "rsna-knee-abnormality-qwen3-8b-weak-labels", "qwen_knee_weak_labels.csv"),
-]
+MANIFEST = ROOT / "experiments" / "S1" / "source_datasets.json"
+
+
+def fetch(api, manifest=MANIFEST, destination=None):
+    destination = Path(destination or ROOT / "data" / "ext")
+    for row in json.loads(Path(manifest).read_text()):
+        owner, slug = row["dataset"].split("/")
+        folder = destination / f"{owner}_{slug}"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / row["filename"]
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]:
+            api.dataset_download_file(f"{row['dataset']}/{row['version']}", row["filename"],
+                                      path=str(folder), force=True, quiet=True)
+        if not path.is_file():
+            raise FileNotFoundError(f"Expected downloaded CSV at {path}")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]:
+            raise ValueError(f"SHA-256 mismatch for {path}; refusing a changed label source")
+        print(f"Verified {row['dataset']}/{row['version']}: {row['filename']}", flush=True)
 
 
 def main():
-    api = get_api()
-    rows = []
-    for owner, slug, filename in SOURCES:
-        request = ApiGetDatasetRequest()
-        request.owner_slug, request.dataset_slug = owner, slug
-        with api.build_kaggle_client() as client:
-            info = client.datasets.dataset_api_client.get_dataset(request)
-        version = info.current_version_number
-        destination = ROOT / "data" / "ext" / f"{owner}_{slug}"
-        destination.mkdir(parents=True, exist_ok=True)
-        api.dataset_download_file(f"{owner}/{slug}/{version}", filename, path=str(destination), force=True, quiet=True)
-        path = destination / filename
-        if not path.is_file():
-            raise FileNotFoundError(f"Expected downloaded CSV at {path}")
-        row = {"dataset": f"{owner}/{slug}", "version": version, "filename": filename,
-               "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
-        rows.append(row)
-        print(row, flush=True)
-    write_json(ROOT / "experiments" / "S1" / "source_datasets.json", rows)
+    from kaggle import api  # any authenticated account with access to the public sources
+    fetch(api)
 
 
 if __name__ == "__main__":

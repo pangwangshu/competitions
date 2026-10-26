@@ -25,12 +25,12 @@ from scripts.s2 import base_config  # noqa: E402
 EXP = ROOT / "experiments"
 CONTROL = EXP / "S2-E-base"
 VARIANTS = {
-    "S3-control": ({}, "E-base 配置经新的多视图代码路径重跑，应与 E-base 一致"),
-    "S3-A1-k16": ({"k_eval": 16}, "A1：k_eval 12 → 16"),
-    "S3-A1-k24": ({"k_eval": 24}, "A1：k_eval 12 → 24"),
-    "S3-A2-mirror": ({"tta": "mirror"}, "A2：解剖镜像 TTA（冠/轴位翻列、矢状位反转切片），与原图概率平均"),
-    "S3-A4-res288": ({"res": 288}, "A4：推理分辨率 256 → 288（训练 256）"),
-    "S3-A5-series-all": ({"series": "all"}, "A5：每槽位所有候选序列的预测平均（原为只取切片最多的）"),
+    "S3-control": ({}, "E-base config rerun through the new multi-view code path; should match E-base"),
+    "S3-A1-k16": ({"k_eval": 16}, "A1: k_eval 12 → 16"),
+    "S3-A1-k24": ({"k_eval": 24}, "A1: k_eval 12 → 24"),
+    "S3-A2-mirror": ({"tta": "mirror"}, "A2: anatomical mirror TTA (flip coronal/axial columns, reverse sagittal slices), probability mean with the original"),
+    "S3-A4-res288": ({"res": 288}, "A4: inference resolution 256 → 288 (trained at 256)"),
+    "S3-A5-series-all": ({"series": "all"}, "A5: average predictions over all candidate series per slot (base: only the one with most slices)"),
 }
 
 
@@ -52,7 +52,7 @@ def write_configs():
 
 OUTPUTS = ["preds_oof.csv", "preds_gold.csv", "preds_test.csv", "logits.csv", "timing.json", "run.json",
            "metrics.json", "error.txt"]
-VERDICT_ZH = {"adopt": "采纳", "pending": "待定", "reject": "拒绝", "gold_only": "仅 gold（无 OOF，不自动采纳）"}
+VERDICT_TEXT = {"adopt": "adopt", "pending": "pending", "reject": "reject", "gold_only": "gold only (no OOF, not adopted automatically)"}
 
 
 def _fmt(r):
@@ -67,16 +67,16 @@ def record(exp, config_diff, kernel, version, gpu_hours, result, cost_ratio=None
         if path.exists():
             summary = evaluation.auc_summary(labels, pd.read_csv(path, index_col=0), kind, 2000)
             metrics[f"m_{name}"] = {"auc": summary["auc"], "ci": summary["ci"]}
-    parts = [VERDICT_ZH[result["verdict"]]]
+    parts = [VERDICT_TEXT[result["verdict"]]]
     if result["oof"] is not None:
         parts.append(f"Δ_oof {_fmt(result['oof'])}")
     parts.append(f"Δ_gold {_fmt(result['gold'])}")
     if cost_ratio is not None:
-        parts.append(f"每 study 计算 ×{cost_ratio:.2f}")
+        parts.append(f"compute per study ×{cost_ratio:.2f}")
     entry = {"id": exp.name, "date": date.today().isoformat(), "config_diff": config_diff, "kernel": kernel,
              "kernel_version": version, "m_oof": metrics.get("m_oof"), "m_gold": metrics.get("m_gold"),
              "public_score": None, "gpu_hours": round(gpu_hours, 3),
-             "conclusion": "；".join(parts) + (f"；{extra}" if extra else "")}
+             "conclusion": "; ".join(parts) + (f"; {extra}" if extra else "")}
     evaluation.write_json(exp / "comparison.json", result)
     evaluation.write_json(exp / "metrics.json", entry)
     return entry
@@ -90,8 +90,8 @@ def offline_a3():
     """Rank and logit averaging of the three checkpoints, from the E-base per-checkpoint logits."""
     logits = pd.read_csv(CONTROL / "logits.csv")
     entries = []
-    for method, text in [("rank", "A3：三折 rank 平均（原为概率平均），由 E-base logit 离线计算"),
-                         ("logit", "A3：三折 logit 平均（原为概率平均），由 E-base logit 离线计算")]:
+    for method, text in [("rank", "A3: rank mean over the three folds (base: probability mean), computed offline from E-base logits"),
+                         ("logit", "A3: logit mean over the three folds (base: probability mean), computed offline from E-base logits")]:
         exp = EXP / f"S3-A3-{method}"
         exp.mkdir(parents=True, exist_ok=True)
         for task in ("gold", "test"):
@@ -106,7 +106,7 @@ def offline_a3():
             pd.DataFrame(evaluation.ensemble(stack, method), index=pd.Index(studies, name="StudyInstanceUID"),
                          columns=LABELS).to_csv(exp / f"preds_{task}.csv", float_format="%.9g")
         result = compare(CONTROL, exp)
-        entries.append(record(exp, text, "离线（E-base logit）", None, 0.0, result))
+        entries.append(record(exp, text, "offline (E-base logits)", None, 0.0, result))
     return entries
 
 
@@ -156,7 +156,7 @@ def report(pulled, gpu_hours, kernel_version):
         exp = EXP / name
         result = compare(CONTROL, exp)
         result["vs_session_control"] = compare(EXP / "S3-control", exp)
-        extra = (f"与 E-base logit 最大差 {check['max_abs_logit_diff']:.1e}（{check['matched']} 行）"
+        extra = (f"max logit diff from E-base {check['max_abs_logit_diff']:.1e} ({check['matched']} rows)"
                  if name == "S3-control" else "")
         entry = record(exp, text, kernel, kernel_version, share[name], result, cost(name), extra)
         summary["variants"][name] = {"overrides": overrides, "verdict": result["verdict"],
@@ -176,15 +176,15 @@ def report(pulled, gpu_hours, kernel_version):
 
 
 ISTAR = {"k_eval": 24, "tta": "mirror", "mirror_mode": "gpu", "series": "all"}
-ISTAR_TEXT = "I*：A1 k_eval 24 + A2 镜像 TTA（GPU 实现）+ A5 所有候选序列"
-TIME_RATIO, HIDDEN_HOURS = 3.0, 1.0  # plan gates: per-study time vs E-base, extrapolated hidden-test hours
+ISTAR_TEXT = "I*: A1 k_eval 24 + A2 mirror TTA (GPU implementation) + A5 all candidate series"
+TIME_RATIO, HIDDEN_HOURS = 3.0, 1.0  # acceptance gates: per-study time vs E-base, extrapolated hidden-test hours
 
 
 # I* exceeded the 1h hidden-test estimate (1.08h); I*2 drops the smallest gain (all series),
 # which also multiplies DICOM decoding.
 CANDIDATES = {"S3-Istar": (ISTAR, ISTAR_TEXT),
               "S3-Istar2": ({"k_eval": 24, "tta": "mirror", "mirror_mode": "gpu"},
-                            "I*2：A1 k_eval 24 + A2 镜像 TTA（GPU 实现）；去掉 A5 以满足 1 小时外推门槛")}
+                            "I*2: A1 k_eval 24 + A2 mirror TTA (GPU implementation); A5 dropped to meet the 1-hour extrapolation gate")}
 
 
 def istar_config(name="S3-Istar"):
@@ -214,8 +214,8 @@ def istar_report(pulled, gpu_hours, kernel_version, name="S3-Istar"):
              "time_ratio": per_study / base, "time_ratio_ok": per_study / base <= TIME_RATIO,
              "hidden_hours": hidden, "hidden_ok": hidden <= HIDDEN_HOURS}
     result["gates"] = gates
-    extra = (f"对最佳单项 {best} Δ_oof {_fmt(vs_best['oof'])}；DICOM {per_study:.2f}s/study"
-             f"（E-base ×{gates['time_ratio']:.2f}），隐藏集估计 {hidden:.2f}h")
+    extra = (f"vs best single change {best} Δ_oof {_fmt(vs_best['oof'])}; DICOM {per_study:.2f}s/study"
+             f" (E-base ×{gates['time_ratio']:.2f}), hidden-set estimate {hidden:.2f}h")
     entry = record(exp, CANDIDATES[name][1], "wangshu/rsna-knee-eval", kernel_version, gpu_hours, result, None,
                    extra)
     print(json.dumps(gates, indent=1), entry["conclusion"])

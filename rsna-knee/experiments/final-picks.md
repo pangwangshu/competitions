@@ -1,10 +1,10 @@
-# F13 / H3: final picks (2026-10-21)
+# Final picks (2026-10-21)
 
-Selected on the Kaggle Submissions page by the user on 2026-10-21 (2/2 shown).
+Selected on the Kaggle Submissions page on 2026-10-21 (2/2 shown).
 
 | Pick | Ref | Kernel | Config | Public |
 |---|---|---|---|---|
-| ② rank | 57376196 | wangshu/rsna-knee-submit-blend-s6 v2 | rank(0.7 nartaa S6 ConvNeXt-small + 0.3 C*x10), S6-final-blend-s6w07 | 0.950 |
+| ② rank | 57376196 | wangshu/rsna-knee-submit-blend-s6 v2 | rank(0.7 rank(nartaa S6 ConvNeXt-small) + 0.3 rank(C*x10)), S6-final-blend-s6w07 | 0.950 |
 | ① own reader | 57335130 | wangshu/rsna-knee-submit-own v7 | T4-S6 distilled students x2 (fold 0) + I*2, S5-probe-F-t4s6x2 | 0.938 |
 
 Why: Kaggle reveals private scores for every submission after close, so the picks only set the official
@@ -27,7 +27,7 @@ Submissions closed 2026-10-22 23:59 UTC. The private leaderboard is visible (API
 scores) but Kaggle/RSNA have not yet announced official results; winner verification runs into November, so ranks
 may still shift slightly. Summary numbers: `experiments/final-leaderboard.json`.
 
-**Official (private) rank: 2,432 / 6,425 (top 37.9%)**, scored by ② 57376196 = 0.936. Public rank at close 2,493.
+**Provisional private rank: 2,432 / 6,425 (top 37.9%)**, scored by ② 57376196 = 0.936. Public rank at close 2,493.
 
 | Pick | Ref | Public | Private |
 |---|---|---|---|
@@ -35,7 +35,7 @@ may still shift slightly. Summary numbers: `experiments/final-leaderboard.json`.
 | ① probe F | 57335130 | 0.938 | **0.927** (best own reader; C*x10 0.921) |
 
 Both picks were the best available choice on private as well. Private scores of all 11 submissions are recorded in
-each experiment's metrics.json (`private_score`) and in experiments/results.csv; the safety baseline 56935305 has no
+experiments/results.csv (`private_score`); the safety baseline 56935305 has no
 registry row: public 0.944, private 0.929.
 
 Board at close (6,425 teams): public top 0.970 / 30% 0.957 / median 0.942; private top 0.960 / 30% 0.942 /

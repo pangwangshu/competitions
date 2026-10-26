@@ -185,7 +185,9 @@ def test_base_view_reproduces_dicom_dataset():
 
     from rsna_knee.reader.infer import DicomStudyDataset, dicom_table
 
-    root = Path("data/raw")
+    from rsna_knee.reader.paths import DATA
+
+    root = Path(DATA)
     if not (root / "test_series").is_dir():
         pytest.skip("local competition test DICOMs are not available")
     studies = pd.read_csv(root / "test.csv").StudyInstanceUID.tolist()[:1]

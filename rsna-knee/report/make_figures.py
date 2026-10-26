@@ -165,8 +165,8 @@ def fig_gpu(df):
     ax.barh(d.stage, d.gpu_hours, color=BLUE, height=0.6)
     for s, h in zip(d.stage, d.gpu_hours):
         ax.annotate(f"{h:.1f} h", (h, s), xytext=(4, 0), textcoords="offset points", va="center", color=INK_2)
-    ax.set_title(f"Kaggle T4 GPU hours by stage (total {df.gpu_hours.sum():.1f} h)")
-    ax.set_xlabel("GPU hours (summed from experiments/results.csv)")
+    ax.set_title(f"Kaggle GPU-quota hours by stage (total {df.gpu_hours.sum():.1f} h)")
+    ax.set_xlabel("quota hours, a 2 x T4 session charged once (summed from experiments/results.csv)")
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", length=0)
     fig.tight_layout()

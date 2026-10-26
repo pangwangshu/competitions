@@ -49,7 +49,7 @@ def write_configs():
     print(path)
 
 
-FULL_TRAIN, EPOCHS, G_TRAIN_HOURS = 3479, 14, 10.0  # fold-0 training studies, author epochs, plan gate
+FULL_TRAIN, EPOCHS, G_TRAIN_HOURS = 3479, 14, 10.0  # fold-0 training studies, author epochs, acceptance gate
 LABELS_CSV = EXP / "S1" / "labels" / "labels_v0.csv"
 
 
@@ -90,13 +90,13 @@ def speed(pulled, gpu_hours, kernel_version):
                         "Step time includes warm-up; per-epoch evaluation is the full 870 val + 58 gold."}
     evaluation.write_json(exp / "decision.json", decision)
     entry = {"id": "S4-speed", "date": date.today().isoformat(),
-             "config_diff": "训练测速：fold 0、作者超参、limit 512、1 epoch；fp16/fp32、bs 8/4、workers 2/4，两卡成对并发",
+             "config_diff": "training speed test: fold 0, author hyperparameters, limit 512, 1 epoch; fp16/fp32, bs 8/4, workers 2/4, paired on two GPUs",
              "kernel": "wangshu/rsna-knee-train", "kernel_version": kernel_version, "m_oof": None, "m_gold": None,
              "public_score": None, "gpu_hours": round(gpu_hours, 3),
-             "conclusion": (f"{'G-train 通过' if decision['g_train_passed'] else 'G-train 未通过'}：最快 {best['name']} "
-                            f"{best['seconds_per_step']:.2f}s/step、每 epoch 评估 {best['eval_seconds']:.0f}s，"
-                            f"一折外推 {best['fold_hours_full']:.2f}h；" +
-                            "；".join(f"{r['name']} {r['fold_hours_full']:.2f}h" for r in rows
+             "conclusion": (f"{'G-train passed' if decision['g_train_passed'] else 'G-train failed'}: fastest {best['name']} "
+                            f"{best['seconds_per_step']:.2f}s/step, per-epoch evaluation {best['eval_seconds']:.0f}s, "
+                            f"one fold extrapolated to {best['fold_hours_full']:.2f}h; " +
+                            "; ".join(f"{r['name']} {r['fold_hours_full']:.2f}h" for r in rows
                                      if r.get("fold_hours_full") is not None and r["name"] != best["name"]))}
     evaluation.write_json(exp / "metrics.json", entry)
     print(table.to_string())
@@ -107,7 +107,7 @@ def speed(pulled, gpu_hours, kernel_version):
 def write_r0_config():
     decision = json.loads((EXP / "S4-speed" / "decision.json").read_text())
     if not decision["g_train_passed"]:
-        raise ValueError("G-train failed: apply the plan's downgrade steps before R0")
+        raise ValueError("G-train failed: apply the predefined downgrade steps before R0")
     best = decision["chosen"]
     args = {**AUTHOR_ARGS, "amp": best["amp"], "bs": int(best["bs"]), "workers": int(best["workers"]),
             "grad_ckpt": 1}

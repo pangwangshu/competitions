@@ -4,7 +4,9 @@ The source dataset identifies its license as Apache-2.0.
 
 The original code belongs to its original contributors. This adaptation adds
 package imports, configurable paths, device/precision selection, and fp16
-gradient scaling. The model and preprocessing algorithms remain unchanged.
+gradient scaling. The core model architecture is retained. Additional changes include deterministic
+DICOM ordering and interpolation, stable fold assignment, mirror augmentation,
+gradient checkpointing, and configurable evaluation frequency.
 
 The upstream source files supplied in the dataset did not include a separate
 NOTICE file; this notice documents the source and the changes made here.
