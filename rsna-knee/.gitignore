@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+*.egg-info/
+.DS_Store
+
+# Competition data, caches and checkpoints are too large for git and are not redistributable
+/data/
+/models/
+/runs/
+*.zip
+*.dcm
+
+# Rendered Kaggle upload scripts/metadata (the kernel.json definitions are tracked)
+kaggle/**/.rendered/
+kaggle/**/kernel-metadata.json
+experiments/.results.lock

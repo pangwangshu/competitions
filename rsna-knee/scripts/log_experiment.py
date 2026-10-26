@@ -1,0 +1,156 @@
+"""Record an experiment's metrics.json in a CSV registry and Markdown log.
+
+Repeated identical records are a no-op. Use --replace for an intentional update
+to an existing experiment ID. The CSV is the canonical record; Markdown is
+regenerated from it, allowing a failed Markdown write to be repaired on rerun.
+"""
+
+import argparse
+import csv
+import fcntl
+import io
+import json
+import math
+import os
+import tempfile
+from datetime import date
+from pathlib import Path
+
+COLUMNS = [
+    "id", "date", "config_diff", "kernel", "kernel_version", "m_oof", "m_oof_ci_low", "m_oof_ci_high",
+    "m_gold", "m_gold_ci_low", "m_gold_ci_high", "public_score", "private_score", "gpu_hours", "conclusion",
+]
+
+
+def atomic_write(path, text):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as stream:
+        tmp = Path(stream.name)
+        try:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
+    try:
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def number(value, *, score=False):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        raise ValueError("A numeric metric cannot be boolean")
+    value = float(value)
+    if not math.isfinite(value) or (score and not 0 <= value <= 1):
+        raise ValueError(f"Invalid metric: {value}")
+    return format(value, ".12g")
+
+
+def make_row(metrics_path):
+    metrics_path = Path(metrics_path)
+    values = json.loads(metrics_path.read_text())
+    row = {key: "" for key in COLUMNS}
+    row["id"] = str(values.get("id", metrics_path.parent.name))
+    if not row["id"] or any(c in row["id"] for c in "/\\\n\r"):
+        raise ValueError("Experiment ID must be a nonempty single path component")
+    row["date"] = date.fromisoformat(values["date"]).isoformat()
+    for key in ["config_diff", "kernel", "kernel_version", "conclusion"]:
+        row[key] = "" if values.get(key) is None else str(values[key])
+    if not row["config_diff"] or not row["conclusion"]:
+        raise ValueError("config_diff and conclusion are required")
+    for key in ["m_oof", "m_gold"]:
+        metric = values.get(key)
+        if metric is None:
+            continue
+        metric = metric if isinstance(metric, dict) else {"auc": metric}
+        row[key] = number(metric["auc"], score=True)
+        if metric.get("ci") is not None:
+            low, high = metric["ci"]
+            row[f"{key}_ci_low"], row[f"{key}_ci_high"] = number(low, score=True), number(high, score=True)
+            if float(low) > float(high):
+                raise ValueError(f"{key} confidence interval is reversed")
+    for key in ["public_score", "private_score"]:
+        row[key] = number(values.get(key), score=True)
+    row["gpu_hours"] = number(values["gpu_hours"])
+    if float(row["gpu_hours"]) < 0:
+        raise ValueError("gpu_hours must be nonnegative")
+    return row
+
+
+def markdown(rows):
+    def cell(value):
+        return str(value or "—").replace("|", "\\|").replace("\n", "<br>").replace("\r", "")
+
+    def metric(row, key):
+        if not row[key]:
+            return "—"
+        score = f"{float(row[key]):.6f}"
+        if row[f"{key}_ci_low"]:
+            score += f" [{float(row[f'{key}_ci_low']):.6f}, {float(row[f'{key}_ci_high']):.6f}]"
+        return score
+
+    text = "# 实验记录\n\n由 `scripts/log_experiment.py` 从 `results.csv` 生成。空白指标表示未评估。\n\n"
+    text += "| 编号 | 日期 | 配置差异 | Kaggle kernel / 版本 | M_oof（CI） | M_gold（CI） | 公榜 | GPU 小时 | 结论 |\n"
+    text += "|---|---|---|---|---|---|---|---|---|\n"
+    for row in rows:
+        kernel = row["kernel"] + (f" / v{row['kernel_version']}" if row["kernel_version"] else "")
+        cells = [row["id"], row["date"], row["config_diff"], kernel, metric(row, "m_oof"),
+                 metric(row, "m_gold"), row["public_score"], row["gpu_hours"], row["conclusion"]]
+        text += "| " + " | ".join(cell(v) for v in cells) + " |\n"
+    return text
+
+
+def record(metrics_path, experiments_dir="experiments", *, replace=False):
+    experiments_dir = Path(experiments_dir)
+    row = make_row(metrics_path)
+    experiments_dir.mkdir(parents=True, exist_ok=True)
+    with (experiments_dir / ".results.lock").open("a") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        return _record_row(row, experiments_dir, replace=replace)
+
+
+def _record_row(row, experiments_dir, *, replace):
+    registry = experiments_dir / "results.csv"
+    rows = []
+    if registry.exists():
+        with registry.open(newline="") as stream:
+            reader = csv.DictReader(stream)
+            if reader.fieldnames != COLUMNS:
+                raise ValueError("Unexpected results.csv columns; migrate the registry explicitly")
+            rows = list(reader)
+    matches = [i for i, old in enumerate(rows) if old["id"] == row["id"]]
+    if len(matches) > 1:
+        raise ValueError("Duplicate experiment IDs in results.csv")
+    if matches:
+        index = matches[0]
+        if rows[index] != row and not replace:
+            raise ValueError(f"{row['id']} already exists with different values; use --replace")
+        rows[index] = row
+    else:
+        rows.append(row)
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(output, fieldnames=COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    atomic_write(registry, output.getvalue())
+    atomic_write(experiments_dir / "log.md", markdown(rows))
+    return row
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("metrics", type=Path, help="experiments/<id>/metrics.json")
+    parser.add_argument("--experiments-dir", type=Path, default=Path("experiments"))
+    parser.add_argument("--replace", action="store_true")
+    args = parser.parse_args()
+    row = record(args.metrics, args.experiments_dir, replace=args.replace)
+    print(f"Recorded {row['id']} in {args.experiments_dir / 'results.csv'} and log.md")
+
+
+if __name__ == "__main__":
+    main()

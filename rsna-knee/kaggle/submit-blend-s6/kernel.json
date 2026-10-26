@@ -1,0 +1,17 @@
+{
+  "id": "wangshu/rsna-knee-submit-blend-s6",
+  "title": "RSNA Knee Submit Blend S6",
+  "code_file": "kernel.py",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": false,
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:2757e0c7d1e0a9cb43da657b97e223c321a98f5014bdf64f44f2f6b083ad2b2f",
+  "dataset_sources": [
+    "nartaa/rsna-knee-s6fall-weights",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "wangshu/rsna-knee-ckpts"
+  ],
+  "kernel_sources": [],
+  "session_timeout_seconds": 21600
+}

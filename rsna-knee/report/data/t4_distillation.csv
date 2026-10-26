@@ -1,0 +1,13 @@
+arm,seed,metric,auc,source
+v0 labels (control),0,OOF fold 0,0.8893112145231865,S5-T1-istar2
+v0 labels (control),0,Gold58,0.8999512556410431,S5-T1-istar2
+v0 labels (control),1,OOF fold 0,0.8893475307266906,S5-T1-seed1-istar2
+v0 labels (control),1,Gold58,0.8981271062021551,S5-T1-seed1-istar2
+v0 labels (control),,Public,0.924,S5-probe-E-t1x2
+v0 labels (control),,Private,0.911,S5-probe-E-t1x2
+distilled labels_t4s,0,OOF fold 0,0.9004647989397349,S5-T4S6-istar2
+distilled labels_t4s,0,Gold58,0.9113393877800099,S5-T4S6-istar2
+distilled labels_t4s,1,OOF fold 0,0.8989179393385482,S5-T4S6-seed1-istar2
+distilled labels_t4s,1,Gold58,0.9118487609447082,S5-T4S6-seed1-istar2
+distilled labels_t4s,,Public,0.938,S5-probe-F-t4s6x2
+distilled labels_t4s,,Private,0.927,S5-probe-F-t4s6x2

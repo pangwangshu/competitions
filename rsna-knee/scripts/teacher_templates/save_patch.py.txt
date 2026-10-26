@@ -1,0 +1,6 @@
+    models.clear(); gc.collect()
+    # S5 T4 patch: keep the probabilities (the script's submission holds within-set ranks).
+    _t_out = pd.DataFrame(np.clip(arm_probs[0], 0, 1), columns=LAB)
+    _t_out.insert(0, "StudyInstanceUID", test_ids)
+    _t_out.insert(1, "fallback", (arm_probs[0] == 0.5).all(axis=1).astype(int))
+    _t_out.to_csv(_t_chunk_out, index=False, float_format="%.7g")
