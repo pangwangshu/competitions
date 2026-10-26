@@ -1,0 +1,21 @@
+{
+  "id": "wangshu/rsna-knee-diag",
+  "title": "RSNA Knee Diag",
+  "code_file": "kernel.py",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "session_timeout_seconds": 2400,
+  "dataset_sources": [],
+  "kernel_sources": [
+    "wangshu/rsna-knee-cache-shard-0",
+    "wangshu/rsna-knee-cache-shard-1",
+    "wangshu/rsna-knee-cache-shard-2",
+    "wangshu/rsna-knee-cache-shard-3",
+    "wangshu/rsna-knee-cache-shard-4",
+    "wangshu/rsna-knee-cache-shard-5",
+    "wangshu/rsna-knee-cache-shard-6",
+    "wangshu/rsna-knee-s1-labels-v0"
+  ]
+}

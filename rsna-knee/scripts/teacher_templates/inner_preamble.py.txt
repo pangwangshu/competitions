@@ -1,0 +1,6 @@
+import os as _t_os
+from pathlib import Path as _t_Path
+
+_t_root = _t_Path(_t_os.environ["RK_TEACHER_ROOT"])
+_t_chunk_out = _t_os.environ["RK_TEACHER_OUT"]
+

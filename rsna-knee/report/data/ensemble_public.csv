@@ -1,0 +1,6 @@
+members,label,id,public,private
+3,author ckpts,S3-probe,0.931,0.917
+3,own Tiny,S6-probe-tiny3,0.928,0.915
+6,own Tiny + Small,S6-probe-tiny3-small3,0.934,0.919
+9,author + own,S6-probe-author3-tiny3-small3,0.934,0.92
+10,C* (5 folds),S6-final-own,0.935,0.921

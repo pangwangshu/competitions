@@ -1,0 +1,38 @@
+{
+  "recorded": "2026-10-25",
+  "status": "provisional: submissions closed 2026-10-22 23:59 UTC, official results pending verification (November)",
+  "source": "Kaggle API get_leaderboard (private) and `kaggle competitions leaderboard -d` (public CSV), fetched 2026-10-26T04:33Z",
+  "teams": 6425,
+  "team": {
+    "id": 16777764,
+    "name": "pangwangshu",
+    "private_rank": 2432,
+    "private_score": 0.936,
+    "public_rank": 2493,
+    "public_score": 0.95
+  },
+  "private": {
+    "top": 0.96,
+    "rank22": 0.954,
+    "top5pct": 0.943,
+    "top10pct": 0.942,
+    "top30pct": 0.942,
+    "median": 0.925,
+    "ties_at_0.942": 1322,
+    "ties_at_0.936": 11,
+    "first_rank_at_0.936": 2426
+  },
+  "public": {
+    "top": 0.97,
+    "top10pct": 0.958,
+    "top30pct": 0.957,
+    "median": 0.942
+  },
+  "shakeup": {
+    "median_abs_rank_move": 46,
+    "public_0.950_teams": 122,
+    "of_which_private_0.932": 66,
+    "public_0.958_teams": 1638,
+    "of_which_private_0.942": 1239
+  }
+}

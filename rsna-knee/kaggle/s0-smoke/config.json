@@ -1,0 +1,4 @@
+{
+  "experiment": "S0-kaggle-smoke",
+  "purpose": "Verify private code publication and embedded config round trip"
+}
