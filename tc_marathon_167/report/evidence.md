@@ -28,6 +28,11 @@ The development repository's last commits are `c501cb8` (final score), `f2517d1`
 - Re-ran the tile-economy extraction (matches the archived JSON exactly) and re-aggregated the 40-state continuation tapes (both mechanism effect sizes reproduce to within rounding).
 - Regenerated all 11 figures with the versions pinned in [`requirements.txt`](requirements.txt).
 
+## Added on 26 October 2026 (§11)
+
+- Dumped the bonus grids of seeds 30001–30200 from the official tester with `line_bound.py --dump`, computed each line bound and joined it with `data/anatomy_final.csv` into `data/line_bound.csv`. Seed 30159's grid was dumped twice and matched.
+- The runner-up's numbers in §11 are quoted from their write-up and not reproduced.
+
 ## Known gaps
 
 - **Refactor equivalence.** I did not recover the per-seed logs of the original 200-game refactor comparison, including its 11 serial repeats. The golden traces and the three-game check above support it but do not replace it.

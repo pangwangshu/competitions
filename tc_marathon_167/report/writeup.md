@@ -18,7 +18,7 @@ The work produced three groups of findings.
 
 **(2) Local and online measurements disagreed at the margin.** Two builds that improved local comparisons against their parent (+2.9% over 600 validation games, +2.9% over a 5,000-game release set also used for diagnosis) read 2.4% *lower* than it on the 100-case provisional leaderboard, and the final submission read 1.4% lower. Slow-machine simulation, compiler variants and timing-guard experiments could not reproduce the drop. With no per-case online data the cause stays unknown, so I describe what was tested and what it rules out.
 
-**(3) The score is a few jackpots, and my best guess at the gap is planning for them.** In the final build, 66% of placed tiles earn 17% of the points, and the best three plays carry a median 46% of a game. Points per consumed tile fall from 32 in the first quarter of the deck to 7 in the third, and 35% of the double/triple-word cells used go into ×2–3 plays. The solver already fishes for concrete target words, but it keeps no target across turns and reserves no cells. I think persistent targets and soft cell protection are the most promising next step. §9 states that hypothesis and the cheapest experiment that would refute it; §10 sketches the architecture around it.
+**(3) The score is a few jackpots, and my best guess at the gap is planning for them.** In the final build, 66% of placed tiles earn 17% of the points, and the best three plays carry a median 46% of a game. Points per consumed tile fall from 32 in the first quarter of the deck to 7 in the third, and 35% of the double/triple-word cells used go into ×2–3 plays. The solver already fishes for concrete target words, but it keeps no target across turns and reserves no cells. I think persistent targets and soft cell protection are the most promising next step. §9 states that hypothesis and the cheapest experiment that would refute it; §10 sketches the architecture around it. A postscript (§11) checks this against the runner-up's published approach. Cross-turn planning was the gap, but its targets are words much longer than one move. Against that ceiling, the *line bound*, my solver's best play is a median three times too small, which my one-move benchmark had hidden.
 
 ---
 
@@ -60,7 +60,7 @@ This report is written in the same spirit as my [Marathon Match 166 write-up](..
 | Property | Consequence |
 |---|---|
 | Word multipliers stack: a word through DW and TW cells is ×6, and three TWs make ×27. With B up to 0.5, products of ×81 to ×729 exist on many boards. | The score distribution is heavy-tailed: a few plays dominate (§8.3). Evaluating a move by its immediate score misses the plays that *set up* a large product. |
-| The tile supply is fixed at N², and a discard costs at most 5 points regardless of how many tiles it throws away. | Tiles are the real currency (§8.3). Discarding is cheap in points but expensive in tiles, and the game ends when tiles or legal moves run out. |
+| The tile supply is fixed at N², and a discard costs at most 5 points regardless of how many tiles it throws away. | Tiles are the real currency (§8.3). Discarding is cheap in points but expensive in tiles, and the game ends when tiles or legal moves run out. *(In hindsight, cells were the scarcer resource; see §11.2.)* |
 | The next X tiles are known exactly; the rest are i.i.d. from known letter frequencies. | Refills inside the preview can be simulated exactly. The rest is sampled, and every candidate must see the *same* samples, or comparisons drown in noise. |
 | Any later word must reuse a board letter, and multipliers are consumed on first use. | The board congests: legal moves thin out and the remaining multipliers get used by whatever fits. 499 of 500 baseline games ended because the deck was exhausted with no legal move left. |
 | Time is per game, not per move: 10 s across 30 to 150 decisions. | Effort must be budgeted across the game. Wall-clock budgets made results non-reproducible (§3.7). |
@@ -384,7 +384,7 @@ The anatomy of the final build's games, against the greedy baseline B0 on the sa
 
 Figure 6 tests three versions of "the board offers more than the solver cashes":
 
-- **The board's largest product window is usually reached.** Over T consecutive cells, the best word-multiplier product on the board has a median of ×34; the solver's largest play reaches it in 66% of games (B0: 15%), and some plays exceed it by threading existing letters. This is a geometric benchmark, not a bound on the best legal word.
+- **The board's largest product window is usually reached.** Over T consecutive cells, the best word-multiplier product on the board has a median of ×34; the solver's largest play reaches it in 66% of games (B0: 15%), and some plays exceed it by threading existing letters. This is a geometric benchmark, not a bound on the best legal word. It was also the wrong benchmark: a word longer than one move can span the T largest multipliers of a whole line, a median of ×81 (§11.2).
 - **Multiplier cells are often spent singly.** 35% of all DW/TW cells the solver uses go into plays whose total product is only ×2 or ×3, a single multiplier on its own. Legal words, anchors and draws limit how many of them could have been combined.
 - **The valuable letters rarely meet the multipliers.** Of the J, K, Q, X and Z tiles, 16% are discarded and 37% are played in ×1 plays; only 15% end up in a play with a product of ×9 or more. A Q or Z on a triple-letter cell inside a ×27 word is worth 810 points from that tile alone.
 
@@ -428,6 +428,8 @@ The leaders' code is not public, so this section is my hypothesis, backed by my 
 
 **The hypothesis and the experiment that would refute it.** My best guess is that the top solvers plan multiplier jackpots across turns: they keep a target, keep its letters, and avoid burning its cells. The cheapest test is to extend O-01C's fishing model with one or two persistent targets and a soft cost for consuming their cells, with cashing, replacement and abandonment allowed. Compare it with frozen O-01C on common futures, equal effort and fresh seeds. If it does not beat O-01C by a clear margin, the gap lies elsewhere, most likely in move generation or evaluation.
 
+*Post-match note.* The runner-up's write-up confirms cross-turn planning but shows that this experiment was too narrow: targets built on one-move lanes cannot reach the multi-move words that carry the jackpots, and an early planner can lose before it wins. §11 revises the experiment.
+
 ---
 
 ## 10. If I started again: a redesign
@@ -447,7 +449,59 @@ The leaders' code is not public, so this section is my hypothesis, backed by my 
 
 ---
 
-## 11. Lessons
+## 11. Postscript: the runner-up's approach
+
+After the match, hitonanode (rank 2, 86.53) published a write-up of their solver [8]. It lets me check §9 and §10 against a solver that reached the top cluster. Their numbers below are their own local measurements, relative to their best score per seed, so they are not on my scale.
+
+### 11.1 What the hypothesis got right
+
+- **Planning jackpots across turns was the gap.** Their solver has two parts. A *planner* picks a target word at a fixed position, prepares its cells and hand over several turns, and plays it. A *rollout solver* plays boards without big targets and finishes games after the planner runs out of plans. Their best single move is more than half of the total score. Mine is a median 22% (§8.3); it exceeds half in 16 of 200 games.
+- **Soft cell protection falls out of the evaluation.** After each candidate move they re-check every affected target on the new grid. A move that ruins one of their own targets loses its value without any special rule, and a move that prepares one gains value. That is the soft cost §10 asked for, with no hand-set penalty. They also value more than one target: the best target plus half of the best targets on three compatible lines.
+- **My architecture is close to their fallback.** Their rollout solver evaluates placements, discard subsets and setup moves with 2–4-turn simulations on random futures shared by all candidates, giving more futures to fewer survivors (2 → 8 → 32). That is close to my stages 3–5. On their scale it reached 48–51; their first planner reached 56, and the rewritten planner, the largest single step, took them from 59 to 76. Their final is 84.5. The gap was in the planner, not in the search.
+- **Precision did not pay; breadth did.** Their exact probabilities, deeper simulations and retrained evaluations did not help; widening the targets and setup moves searched did. That matches my saturation pattern (§6) and the lane prefilter's gain.
+
+### 11.2 What I got wrong
+
+**The benchmark in Figure 6a was too weak.** I measured the best word-multiplier product over T *consecutive* cells and found that the solver reached it in 66% of games. Their benchmark, the **line bound**, is the product of the T largest word multipliers anywhere in one row or column. One move places at most T tiles, so no play's main word can beat it. It can be reached because the target word can be much longer than T: about 12 letters to cover seven multiplier cells, with the other letters placed by earlier moves. Recomputed on the same 200 seeds from the tester's bonus grids (`data/line_bound.csv`):
+
+| Line bound | Games | Median line bound | Median best play (product) | Best play reaches the bound | Median score |
+|---|---:|---:|---:|---:|---:|
+| ≤ ×17 | 19 | ×9 | ×6 | 10 | 678 |
+| ×18–80 | 70 | ×36 | ×18 | 15 | 1,368 |
+| ×81–242 | 49 | ×144 | ×27 | 7 | 2,350 |
+| ≥ ×243 | 62 | ×459 | ×81 | 2 | 5,100 |
+
+The median line bound is ×81, three times the median consecutive window (×34) and the solver's median best play (×27). The 62 boards with a bound of ×243 or more carry 62% of my points, and there the best play reaches the bound twice. Because YOUR/MAX is computed per case, a jackpot of ×459 instead of ×81 on those boards matters to the score more than anything else in this report. The consecutive window made the solver look close to the ceiling when it was not.
+
+**The lane model could not see these targets.** A lane is at most T empty cells that one move fills (Appendix C). Fishing and the board potential inherit that limit. Persistent targets on top of lanes, as §9 proposed, would still be one-move targets. What their planner adds is the *shape* of a target: a word in a line, the set of cells its final move fills, and the *runs* in between that earlier moves must fill with single letters or dictionary words, each started by a perpendicular word that reaches an existing letter.
+
+**Tiles were not the currency; cells were.** Table 1 says "tiles are the real currency". They argue the reverse: cells are scarce and tiles are not. A third of their tiles get discarded, and making discards cheap in their first planner gained 6%. My own data agreed in hindsight. 159 of 200 games end with about a sixth of the deck unused because no legal word remains (§8.3), and charging actions for the tiles they draw lost 2.6% (§6). My final build discards 13% of the deck.
+
+### 11.3 Ideas I had not considered
+
+- **Placement-order DP.** Split a chosen placement into a sequence of smaller legal placements with the largest total score. MO → MOO → MOOD scores 4 + 5 + 7 = 16 instead of 7, and the final grid is the same. It gained them 1.4–3%. It is independent of the rest of the solver and could be added to O-01C as a post-processing step.
+- **A feasibility table for setup letters.** `cost[cell][letter]` is the cheapest perpendicular word, with at most 3 new tiles, that puts that letter on that cell legally. Runs that cannot be started yet get a penalty that grows with their distance to the nearest letter. This gives the planner a gradient towards moves that bring letters closer. Replacing a distance-only guess with this table was one of their largest changes (−7% → +13% against their previous planner).
+- **Choose the solver by the line bound.** They run the rollout solver alone when the bound is at most ×17. On my seeds that is 19 of 200 boards, the ones where my solver already reaches the bound in half the games.
+- **A target's value.** Score × P(all missing letters are drawn in time) − c × E[draws], where c is the value of a tile in the weakest plan the remaining deck can still pay for. That prices waiting directly, which my 4-step greedy continuations could not (§6, pattern 2).
+- **Compile time.** The 30 s compile limit mattered for them: the server took up to 4.8× their local compile time. A `#pragma GCC optimize("O1", ...)` with the vectorisation passes halved compile time and ran within 5% of -O3. I never checked my compile time on the grader.
+
+### 11.4 Process
+
+- **Seed counts.** Most of their 1–3% gains on 100–200 seeds disappeared on 1,000, and they adopted a change only if it led by more than 2 standard errors on 1,000+ paired seeds. My validation sets had 200 instances, each run with three strategy RNG seeds. The RNG seeds remove sampling luck but not instance luck. That is one more candidate for the O-01A disagreement (§7.4), though O-01C's gain held on 5,000 seeds.
+- **A half-built planner loses.** Their first four planner versions were 2.7–7% *worse* than their rollout solver. Most bugs were inconsistent value accounting that made the planner discard for a hundred turns instead of completing. My refutation test in §9 ("if it does not beat O-01C by a clear margin, the gap lies elsewhere") would have stopped that line of work too early.
+- **Direction, not tuning.** Both of us developed with AI coding agents. Their largest steps came from instructions that changed direction: "we are far behind first place; build something very different", and "do not be bound by the previous experiments; study how strong Scrabble programs work". The second produced the planner. Requests for tuning and speed-ups barely moved their score. My protocol made every build a refinement of its parent with pre-registered gates. That made each step safe and auditable, and it made a redesign unlikely.
+
+### 11.5 What this changes in §10
+
+1. **Measure the line bound first.** Comparing it with the solver's best play costs one pass over the bonus grids. On day one, against the greedy baseline (median best play ×9), it would have shown the gap.
+2. **Define targets by line, not by window:** the word, the cells the final move fills, and the runs to prepare, with a feasibility table for starting each run. Persistence and soft cell protection then come from re-checking targets after each candidate move.
+3. **Keep O-01C as the fallback** for boards with a line bound of ×17 or less and for the end of the game, as their rollout solver is used.
+4. **Add the placement-order DP now.** It is the cheapest idea here and independent of the rest.
+5. **Expect early planners to lose,** and compare versions on 1,000+ paired seeds rather than stopping on the first negative result.
+
+---
+
+## 12. Lessons
 
 1. **Find the jackpot structure first.** When a score multiplies, a few events dominate. Measure that on the first day, then confirm any planning idea with whole-game comparisons.
 2. **Saturation is a signal.** When width, samples, pool size and time all stop helping, look at the value function before buying more search, while remembering that a flat curve was measured for one configuration.
@@ -455,26 +509,27 @@ The leaders' code is not public, so this section is my hypothesis, backed by my 
 4. **Budget compute in deterministic units.** It turned a noisy, load-dependent solver into a reproducible one and made every comparison a paired comparison of decisions.
 5. **Know what each signal can see.** 600 local games could not predict a 100-case provisional reading after INT-01. Decide in advance which signal settles which question.
 6. **Write negative results down with their numbers.** Fifteen rejected changes form most of this report's evidence about where this architecture stopped improving.
+7. **Benchmark against a real bound.** The consecutive-window product said the solver was close to the ceiling; the line bound (§11.2) said it was three times below it. A benchmark that the current design can reach by construction only measures that design.
 
 ---
 
-## 12. Threats to validity
+## 13. Threats to validity
 
 - **Hardware.** All local runs used one Apple M4 machine; the grader's hardware is unknown.
 - **Historical numbers.** Effects in §5–7 come from the development log, each measured against the build current at the time on the stated seeds. §8.2–8.5 and Figures 1, 3a, 5, 6, 7b and 8 come from runs made for this report; Figure 10 re-analyses the 5,000-game release run made during the match.
 - **Parallel runs.** The 200-seed lineage run used six parallel games. Builds budgeted in effort units are unaffected unless the wall-clock guard engages; Table 4 reports how often it did, and the wall-clock-budget probes were re-run serially.
 - **Provisional scores** cover 100 cases and are relative to a moving field. The final score covers 5,000 cases but only for the last submission.
 - **Which probe was submitted last** is not recorded in the development log, so the final submission is identified only as one of the six O-01C time-limit probes (§8.5).
-- **The leaders' approach** is unknown; §9 proposes experiments on our solver rather than identifying their architecture.
+- **The leaders' approach** was unknown when §9 was written. §11 relies on the runner-up's own write-up and local numbers, which I did not reproduce; only the line-bound table was measured here.
 - **Adaptive use of release data.** The 5,000-game set exposed the STOP failure and informed O-01C. Its post-fix gain and interval describe that set, not a fully untouched confirmation.
 - **Refactor equivalence.** The 200-of-200 action match (§8.2) is the record made at the time; after the match only the golden traces and a three-game spot check were re-run.
 - **Mechanism selection.** The 40 fishing states were selected where the new policy wanted to discard, with uncapped continuation computation. Their gains cannot be extrapolated to all states or the online budget.
 
 ---
 
-## 13. Conclusion
+## 14. Conclusion
 
-I built a reproducible, carefully measured C++ solver for a one-player word game and improved it from 26.6 to a best provisional reading of 37.0 and a final score of 40.57 (rank 41 of 79). Locally the final build scores 1.65× the greedy baseline. The engineering held up: zero failed games in tens of thousands of local runs, deterministic effort accounting and independent oracles for every rule. The search refinements ran into diminishing returns, and the one change aimed at jackpots, fishing for target letters, gained only modestly, probably in part because it re-chooses its target from scratch each turn. My best guess is that the leaders planned those jackpots across turns; §9 gives the experiment that would test it. The exact budget variant behind the final score remains unidentified.
+I built a reproducible, carefully measured C++ solver for a one-player word game and improved it from 26.6 to a best provisional reading of 37.0 and a final score of 40.57 (rank 41 of 79). Locally the final build scores 1.65× the greedy baseline. The engineering held up: zero failed games in tens of thousands of local runs, deterministic effort accounting and independent oracles for every rule. The search refinements ran into diminishing returns, and the one change aimed at jackpots, fishing for target letters, gained only modestly, probably in part because it re-chooses its target from scratch each turn. My best guess was that the leaders planned those jackpots across turns. The runner-up's write-up confirms it (§11) and shows what my analysis missed: the target word can be far longer than one move, so the real ceiling, the line bound, was three times the products my solver played. The exact budget variant behind the final score remains unidentified.
 
 ---
 
@@ -491,6 +546,7 @@ Development used an AI coding assistant (Claude) for implementation, experiment 
 5. Jamieson, K., & Talwalkar, A. (2016). Non-stochastic best arm identification and hyperparameter optimization. In *AISTATS 2016*, 240–248. (Successive halving.)
 6. Glasserman, P., & Yao, D. D. (1992). Some guidelines and guarantees for common random numbers. *Management Science*, 38(6), 884–908.
 7. Tesauro, G., & Galperin, G. R. (1996). On-line policy improvement using Monte-Carlo search. In *NIPS 9*, 1068–1074. (Rollouts.)
+8. hitonanode (2026). *MM167 WordGame: plan one huge word, play the rest with rollouts.* https://gist.github.com/hitonanode/d9b7f2fb83eb03a59be4a8cab2d64be2
 
 ---
 
@@ -512,7 +568,7 @@ Paths are relative to the `tc_marathon_167/` directory of this repository.
 | `tests/selfplay.py`, `test_golden.py`, `golden/` | Java-free deterministic game driver; golden action traces |
 | `scripts/bundle.py` | Single-file submission bundle (`dist/WordGame.cpp`, `.zip`) |
 | `scripts/run_tester.py` | Run the official tester over seeds, CSV out |
-| `report/` | This report, its figures, the data behind them, `extract_runs.py` (tester runs → data) and `make_figures.py` (data → figures) |
+| `report/` | This report, its figures, the data behind them, `extract_runs.py` (tester runs → data), `line_bound.py` (bonus grids → `line_bound.csv`) and `make_figures.py` (data → figures) |
 
 ## Appendix B. Reproducing the results
 
@@ -569,6 +625,7 @@ Record the source commit, binary/dictionary/tester SHA256, command, compiler, se
 - `anatomy_final.csv`, `anatomy_b0.csv`: per-game anatomy of the final build and of the greedy baseline (plays, tiles, discards, best plays, multiplier products, points and tiles by deck quarter);
 - `per_tile_*.csv`, `product_*.csv`, `multiplier_cells_final.csv`, `rare_letters_final.csv`, `effort_final.csv`: the play-level aggregates behind Figures 5, 6 and 8;
 - `board_final.json`: the game drawn in Figure 1;
+- `line_bound.csv`: each seed's line bound next to the final build's best play (§11.2), written by `line_bound.py` from bonus grids that the same script dumps when run as a solver under the tester (see its docstring);
 - `serial_probes.csv`: the wall-clock-budget probes and O-01C re-run one game at a time;
 - `final5000.csv`: INT-01, O-01B and O-01C on the 5,000-seed release set 20001–25000;
 - `leaderboard.csv`: the final standings page, parsed;
